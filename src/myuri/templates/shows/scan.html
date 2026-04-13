@@ -1,0 +1,1164 @@
+{% extends "base.html" %}
+
+{% block title %}Scan - Anime Discussion Manager{% endblock %}
+
+{% block content %}
+<style>
+    /* Widen the page for the results table */
+    body {
+        max-width: 1500px;
+    }
+    /* Keep header consistent with other pages (800px centered) */
+    header {
+        max-width: 800px;
+        margin: -20px auto 20px auto;
+    }
+
+    .scan-controls {
+        display: flex;
+        align-items: center;
+        gap: 20px;
+        margin-bottom: 20px;
+        padding: 15px;
+        background: var(--bg-tertiary);
+        border-radius: 8px;
+    }
+
+    .scan-info {
+        flex: 1;
+    }
+
+    .scan-info .label {
+        color: var(--text-muted);
+        font-size: 0.9em;
+    }
+
+    .scan-info .value {
+        font-weight: 500;
+    }
+
+    .scan-btn {
+        padding: 12px 24px;
+        font-size: 1em;
+        min-width: 120px;
+    }
+
+    .scan-btn:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+    }
+
+    .scan-btn.loading {
+        position: relative;
+    }
+
+    .scan-btn.loading::after {
+        content: "";
+        position: absolute;
+        width: 16px;
+        height: 16px;
+        border: 2px solid white;
+        border-top-color: transparent;
+        border-radius: 50%;
+        animation: spin 0.8s linear infinite;
+        margin-left: 8px;
+    }
+
+    @keyframes spin {
+        to { transform: rotate(360deg); }
+    }
+
+    .results-section {
+        margin-top: 20px;
+    }
+
+    .results-table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 10px;
+    }
+
+    .results-table th,
+    .results-table td {
+        padding: 12px;
+        text-align: left;
+        border-bottom: 1px solid var(--border-color);
+    }
+
+    .results-table th {
+        background: var(--bg-tertiary);
+        font-weight: 600;
+        color: var(--text-secondary);
+    }
+
+    .results-table tr:hover {
+        background: var(--bg-tertiary);
+    }
+
+    .results-table a {
+        color: var(--link-color);
+        text-decoration: none;
+    }
+
+    .results-table a:hover {
+        text-decoration: underline;
+    }
+
+    .no-results {
+        text-align: center;
+        padding: 40px 20px;
+        color: var(--text-muted);
+    }
+
+    .error-section {
+        background: var(--error-bg);
+        color: var(--error-text);
+        padding: 15px;
+        border-radius: 8px;
+        margin-top: 20px;
+    }
+
+    .error-section h3 {
+        margin: 0 0 10px 0;
+        color: var(--error-text);
+    }
+
+    .error-section ul {
+        margin: 0;
+        padding-left: 20px;
+    }
+
+    .stats {
+        display: flex;
+        gap: 30px;
+        margin-bottom: 20px;
+        color: var(--text-secondary);
+    }
+
+    .stat-item {
+        display: flex;
+        align-items: baseline;
+        gap: 8px;
+    }
+
+    .stat-value {
+        font-size: 1.5em;
+        font-weight: 600;
+        color: var(--text-primary);
+    }
+
+    .torrent-title {
+        font-size: 0.85em;
+        color: var(--text-muted);
+        max-width: 300px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .hidden {
+        display: none;
+    }
+
+    /* Status badges */
+    .status-badge {
+        display: inline-block;
+        padding: 4px 8px;
+        border-radius: 4px;
+        font-size: 0.85em;
+        font-weight: 500;
+    }
+
+    .status-ready {
+        background: var(--success-bg);
+        color: var(--success-text);
+    }
+
+    .status-skipped {
+        background: var(--bg-tertiary);
+        color: var(--text-muted);
+    }
+
+    .status-posted {
+        background: #d4edda;
+        color: #155724;
+    }
+
+    .status-failed {
+        background: var(--error-bg);
+        color: var(--error-text);
+    }
+
+    .status-pending {
+        background: var(--bg-tertiary);
+        color: var(--text-muted);
+    }
+
+    /* Post results section */
+    .post-results {
+        margin-top: 20px;
+        padding: 15px;
+        background: var(--bg-tertiary);
+        border-radius: 8px;
+    }
+
+    .post-results h3 {
+        margin: 0 0 15px 0;
+    }
+
+    .post-results-list {
+        list-style: none;
+        padding: 0;
+        margin: 0;
+    }
+
+    .post-results-list li {
+        padding: 8px 0;
+        border-bottom: 1px solid var(--border-color);
+    }
+
+    .post-results-list li:last-child {
+        border-bottom: none;
+    }
+
+    .post-btn {
+        background: #28a745;
+    }
+
+    .post-btn:hover {
+        background: #218838;
+    }
+
+    .post-btn:disabled {
+        background: #6c757d;
+        cursor: not-allowed;
+    }
+
+    /* Scheduler status section */
+    .scheduler-status {
+        display: flex;
+        align-items: center;
+        gap: 20px;
+        padding: 15px;
+        background: var(--bg-tertiary);
+        border-radius: 8px;
+        margin-bottom: 20px;
+    }
+
+    .scheduler-status .status-indicator {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .scheduler-status .status-dot {
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+    }
+
+    .scheduler-status .status-dot.enabled {
+        background: #28a745;
+    }
+
+    .scheduler-status .status-dot.disabled {
+        background: #6c757d;
+    }
+
+    .scheduler-info {
+        flex: 1;
+        display: flex;
+        gap: 20px;
+    }
+
+    .scheduler-info .info-item {
+        color: var(--text-secondary);
+    }
+
+    .scheduler-info .info-label {
+        color: var(--text-muted);
+        font-size: 0.9em;
+    }
+
+    .admin-link {
+        font-size: 0.9em;
+    }
+
+    /* Individual scan progress panel */
+    .individual-progress {
+        margin-top: 20px;
+        padding: 15px 20px;
+        background: var(--bg-tertiary);
+        border-radius: 8px;
+    }
+
+    .individual-progress h3 {
+        margin: 0 0 12px 0;
+        font-size: 1em;
+        color: var(--text-secondary);
+        font-weight: 600;
+    }
+
+    .show-progress-list {
+        list-style: none;
+        padding: 0;
+        margin: 0;
+    }
+
+    .show-progress-item {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 6px 0;
+        border-bottom: 1px solid var(--border-color);
+        font-size: 0.95em;
+    }
+
+    .show-progress-item:last-child {
+        border-bottom: none;
+    }
+
+    .progress-icon {
+        width: 20px;
+        text-align: center;
+        flex-shrink: 0;
+        color: var(--text-muted);
+    }
+
+    .progress-spinner {
+        display: inline-block;
+        width: 13px;
+        height: 13px;
+        border: 2px solid var(--text-muted);
+        border-top-color: #6f42c1;
+        border-radius: 50%;
+        animation: spin 0.8s linear infinite;
+        vertical-align: middle;
+    }
+
+    .show-name {
+        flex: 1;
+    }
+
+    .show-progress-item.sp-scanning .show-name {
+        color: var(--text-secondary);
+    }
+
+    .show-progress-item.sp-done .progress-icon { color: #28a745; }
+    .show-progress-item.sp-done .progress-detail { color: #28a745; }
+
+    .show-progress-item.sp-done-empty .progress-icon { color: var(--text-muted); }
+
+    .show-progress-item.sp-error .progress-icon { color: var(--error-text); }
+    .show-progress-item.sp-error .show-name    { color: var(--error-text); }
+    .show-progress-item.sp-error .progress-detail { color: var(--error-text); }
+
+    .progress-detail {
+        font-size: 0.85em;
+        color: var(--text-muted);
+        min-width: 140px;
+        text-align: right;
+    }
+
+    /* Scheduled results section */
+    .scheduled-results {
+        margin-top: 30px;
+        padding: 20px;
+        background: var(--bg-secondary);
+        border-radius: 8px;
+        border: 1px solid var(--border-color);
+    }
+
+    .scheduled-results h3 {
+        margin: 0 0 15px 0;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+
+    .scheduled-results .scan-meta {
+        display: flex;
+        gap: 20px;
+        margin-bottom: 15px;
+        color: var(--text-secondary);
+        font-size: 0.9em;
+    }
+
+    .scheduled-results .scan-stats {
+        display: flex;
+        gap: 20px;
+        margin-bottom: 15px;
+    }
+
+    .scheduled-results .stat {
+        padding: 8px 12px;
+        background: var(--bg-tertiary);
+        border-radius: 4px;
+        font-size: 0.9em;
+    }
+
+    .scheduled-results .stat-label {
+        color: var(--text-muted);
+    }
+
+    .scheduled-results .stat-value {
+        font-weight: 600;
+        margin-left: 5px;
+    }
+
+    .scheduled-episodes-table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 10px;
+    }
+
+    .scheduled-episodes-table th,
+    .scheduled-episodes-table td {
+        padding: 10px;
+        text-align: left;
+        border-bottom: 1px solid var(--border-color);
+    }
+
+    .scheduled-episodes-table th {
+        background: var(--bg-tertiary);
+        font-weight: 600;
+        color: var(--text-secondary);
+        font-size: 0.9em;
+    }
+</style>
+
+<h2>Episode Scanner</h2>
+<p>Scan Nyaa.si for new episode releases matching your enabled shows.</p>
+
+<!-- Scheduler Status Section -->
+<div class="scheduler-status">
+    <div class="status-indicator">
+        <span class="status-dot {% if scheduler_config.enabled %}enabled{% else %}disabled{% endif %}"></span>
+        <strong>Process: {% if scheduler_config.enabled %}Enabled{% else %}Disabled{% endif %}</strong>
+    </div>
+    <div class="status-indicator">
+        <span class="status-dot {% if scheduler_running %}enabled{% else %}disabled{% endif %}"></span>
+        <strong>Status: {% if scheduler_running %}Running{% else %}No Heartbeat{% endif %}</strong>
+    </div>
+    <div class="scheduler-info">
+        <div class="info-item">
+            <span class="info-label">Interval:</span>
+            {{ scheduler_config.interval_minutes }} min
+        </div>
+        <div class="info-item">
+            <span class="info-label">Last run:</span>
+            {% if scheduler_config.last_run %}
+                {{ scheduler_config.last_run|date:"M d, H:i" }}
+            {% else %}
+                Never
+            {% endif %}
+        </div>
+        {% if scheduler_last_heartbeat %}
+        <div class="info-item">
+            <span class="info-label">Last heartbeat:</span>
+            {{ scheduler_last_heartbeat|date:"M d, H:i" }}
+        </div>
+        {% endif %}
+    </div>
+    <a href="{% url 'admin:shows_schedulerconfig_change' 1 %}" class="admin-link">Manage</a>
+</div>
+
+<div class="scan-controls">
+    <div class="scan-info">
+        <span class="label">Last manual scan:</span>
+        <span class="value" id="last-scan-time">
+            {% if last_scan_result %}
+                {{ last_scan_result.scan_time|date:"M d, Y H:i" }}
+            {% else %}
+                Never
+            {% endif %}
+        </span>
+    </div>
+    <button class="btn scan-btn" id="scan-btn" onclick="triggerScan()">
+        Scan Now
+    </button>
+    <button class="btn scan-btn" id="scan-individual-btn" onclick="triggerScanIndividual()" style="background: #6f42c1;">
+        Scan Individual All
+    </button>
+    <button class="btn scan-btn post-btn" id="post-btn" onclick="postEligible()" disabled>
+        Post Eligible (0)
+    </button>
+    <button class="btn scan-btn" id="clear-btn" onclick="clearScanResults()" style="background: #6c757d;">
+        Clear
+    </button>
+</div>
+
+<div class="individual-progress hidden" id="individual-progress"
+     data-store-url="{% url 'shows:store_scan_results' %}">
+    <h3>Individual Scan Progress</h3>
+    <ul class="show-progress-list" id="show-progress-list">
+        {% for show in enabled_shows %}
+        <li class="show-progress-item"
+            id="show-progress-{{ show.id }}"
+            data-show-id="{{ show.id }}"
+            data-url="{% url 'shows:scan_individual_show' show_id=show.id %}">
+            <span class="progress-icon" id="show-icon-{{ show.id }}">—</span>
+            <span class="show-name">{{ show.title }}</span>
+            <span class="progress-detail" id="show-detail-{{ show.id }}"></span>
+        </li>
+        {% endfor %}
+    </ul>
+</div>
+
+<div class="stats" id="stats-section" {% if not last_scan_result %}class="hidden"{% endif %}>
+    <div class="stat-item">
+        <span class="stat-value" id="episodes-count">{{ last_scan_result.episodes_found|length|default:0 }}</span>
+        <span>episodes found</span>
+    </div>
+    <div class="stat-item">
+        <span class="stat-value" id="shows-count">{{ last_scan_result.shows_scanned|default:0 }}</span>
+        <span>shows scanned</span>
+    </div>
+    <div class="stat-item">
+        <span class="stat-value" id="eligible-count">0</span>
+        <span>eligible to post</span>
+    </div>
+</div>
+
+<div class="error-section hidden" id="error-section">
+    <h3>Errors</h3>
+    <ul id="error-list"></ul>
+</div>
+
+<div class="post-results hidden" id="post-results">
+    <h3>Post Results</h3>
+    <div id="posted-section" class="hidden">
+        <strong>Posted:</strong>
+        <ul class="post-results-list" id="posted-list"></ul>
+    </div>
+    <div id="skipped-section" class="hidden">
+        <strong>Skipped:</strong>
+        <ul class="post-results-list" id="skipped-list"></ul>
+    </div>
+    <div id="failed-section" class="hidden">
+        <strong>Failed:</strong>
+        <ul class="post-results-list" id="failed-list"></ul>
+    </div>
+</div>
+
+<div class="results-section">
+    <h3>Found Episodes</h3>
+    <table class="results-table" id="results-table">
+        <thead>
+            <tr>
+                <th>Show</th>
+                <th>Episode</th>
+                <th>Status</th>
+                <th>Source</th>
+                <th>Found</th>
+                <th>Torrent</th>
+            </tr>
+        </thead>
+        <tbody id="results-body">
+            {% if last_scan_result and last_scan_result.episodes_found %}
+                {% for ep in last_scan_result.episodes_found %}
+                <tr data-show-id="{{ ep.show_id }}" data-episode-number="{{ ep.episode_number }}">
+                    <td>{{ ep.show_title }}</td>
+                    <td>{{ ep.episode_number }}</td>
+                    <td><span class="status-badge status-pending">Checking...</span></td>
+                    <td>{{ ep.source }}</td>
+                    <td>{{ ep.found_at|date:"M d, H:i" }}</td>
+                    <td>
+                        <a href="{{ ep.link }}" target="_blank" rel="noopener">View</a>
+                        <span class="torrent-title" title="{{ ep.torrent_title }}">{{ ep.torrent_title }}</span>
+                    </td>
+                </tr>
+                {% endfor %}
+            {% else %}
+                <tr class="no-results-row">
+                    <td colspan="6">
+                        <div class="no-results">
+                            {% if last_scan_result %}
+                                No episodes found in the last scan.
+                            {% else %}
+                                Click "Scan Now" to check for new episodes.
+                            {% endif %}
+                        </div>
+                    </td>
+                </tr>
+            {% endif %}
+        </tbody>
+    </table>
+</div>
+
+<script>
+    const csrfToken = '{{ csrf_token }}';
+    let currentEpisodes = [];  // Store scan results for eligibility mapping
+    let eligibilityMap = {};   // Map show_id -> eligibility info
+
+    async function clearScanResults() {
+        const clearBtn = document.getElementById('clear-btn');
+        const postBtn = document.getElementById('post-btn');
+
+        clearBtn.disabled = true;
+
+        try {
+            const response = await fetch('{% url "shows:clear_scan_results" %}', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': csrfToken,
+                },
+            });
+
+            const data = await response.json();
+
+            if (!response.ok || !data.success) {
+                throw new Error(data.error || 'Failed to clear results');
+            }
+
+            // Clear UI
+            document.getElementById('last-scan-time').textContent = 'Never';
+            document.getElementById('stats-section').classList.add('hidden');
+            document.getElementById('error-section').classList.add('hidden');
+            document.getElementById('post-results').classList.add('hidden');
+            document.getElementById('results-body').innerHTML = `
+                <tr class="no-results-row">
+                    <td colspan="6">
+                        <div class="no-results">Click "Scan Now" to check for new episodes.</div>
+                    </td>
+                </tr>
+            `;
+
+            // Reset state
+            currentEpisodes = [];
+            eligibilityMap = {};
+            postBtn.textContent = 'Post Eligible (0)';
+            postBtn.disabled = true;
+
+        } catch (error) {
+            alert('Error: ' + error.message);
+        } finally {
+            clearBtn.disabled = false;
+        }
+    }
+
+    async function triggerScan() {
+        const btn = document.getElementById('scan-btn');
+        const postBtn = document.getElementById('post-btn');
+        const errorSection = document.getElementById('error-section');
+        const errorList = document.getElementById('error-list');
+
+        // Disable buttons and show loading state
+        btn.disabled = true;
+        postBtn.disabled = true;
+        btn.classList.add('loading');
+        btn.textContent = 'Scanning...';
+        errorSection.classList.add('hidden');
+        document.getElementById('post-results').classList.add('hidden');
+
+        try {
+            const response = await fetch('{% url "shows:trigger_scan" %}', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': csrfToken,
+                },
+            });
+
+            const data = await response.json();
+
+            if (!response.ok || !data.success) {
+                throw new Error(data.error || 'Scan failed');
+            }
+
+            // Update last scan time
+            const scanTime = new Date(data.scan_time);
+            document.getElementById('last-scan-time').textContent = formatDate(scanTime);
+
+            // Update stats
+            document.getElementById('stats-section').classList.remove('hidden');
+            document.getElementById('episodes-count').textContent = data.episodes_found.length;
+            document.getElementById('shows-count').textContent = data.shows_scanned;
+
+            // Store episodes for later use
+            currentEpisodes = data.episodes_found;
+
+            // Update results table with pending status
+            updateResultsTable(data.episodes_found);
+
+            // Show errors if any
+            if (data.errors && data.errors.length > 0) {
+                errorList.innerHTML = data.errors.map(e => `<li>${escapeHtml(e)}</li>`).join('');
+                errorSection.classList.remove('hidden');
+            }
+
+            // Check eligibility after scan
+            if (data.episodes_found.length > 0) {
+                await checkEligibility();
+            }
+
+        } catch (error) {
+            errorList.innerHTML = `<li>${escapeHtml(error.message)}</li>`;
+            errorSection.classList.remove('hidden');
+        } finally {
+            btn.disabled = false;
+            btn.classList.remove('loading');
+            btn.textContent = 'Scan Now';
+        }
+    }
+
+    async function triggerScanIndividual() {
+        const btn = document.getElementById('scan-individual-btn');
+        const scanBtn = document.getElementById('scan-btn');
+        const postBtn = document.getElementById('post-btn');
+        const progressSection = document.getElementById('individual-progress');
+        const errorSection = document.getElementById('error-section');
+        const errorList = document.getElementById('error-list');
+
+        const showItems = Array.from(
+            document.querySelectorAll('#show-progress-list .show-progress-item')
+        );
+
+        if (showItems.length === 0) {
+            errorList.innerHTML = '<li>No active shows to scan.</li>';
+            errorSection.classList.remove('hidden');
+            return;
+        }
+
+        // Reset all rows to pending before starting
+        showItems.forEach(item => setShowStatus(parseInt(item.dataset.showId), 'pending'));
+
+        btn.disabled = true;
+        scanBtn.disabled = true;
+        postBtn.disabled = true;
+        btn.classList.add('loading');
+        btn.textContent = 'Scanning...';
+        errorSection.classList.add('hidden');
+        document.getElementById('post-results').classList.add('hidden');
+        progressSection.classList.remove('hidden');
+
+        const allEpisodes = [];
+        const allErrors = [];
+
+        for (const item of showItems) {
+            const showId = parseInt(item.dataset.showId);
+            const scanUrl = item.dataset.url;
+            const showName = item.querySelector('.show-name').textContent;
+
+            setShowStatus(showId, 'scanning');
+
+            try {
+                const response = await fetch(scanUrl, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': csrfToken,
+                    },
+                });
+
+                const data = await response.json();
+
+                if (!response.ok || !data.success) {
+                    throw new Error(data.error || 'Scan failed');
+                }
+
+                allEpisodes.push(...data.episodes_found);
+                allErrors.push(...data.errors);
+                setShowStatus(showId, 'done', data.episodes_found.length);
+
+            } catch (error) {
+                allErrors.push(`${showName}: ${error.message}`);
+                setShowStatus(showId, 'error', 0, error.message);
+            }
+        }
+
+        // Commit accumulated results to session so eligibility/post flows work
+        try {
+            const storeResponse = await fetch('{% url "shows:store_scan_results" %}', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': csrfToken,
+                },
+                body: JSON.stringify({
+                    episodes_found: allEpisodes,
+                    shows_scanned: showItems.length,
+                    errors: allErrors,
+                }),
+            });
+
+            const storeData = await storeResponse.json();
+            if (storeData.success) {
+                document.getElementById('last-scan-time').textContent =
+                    formatDate(new Date(storeData.scan_time));
+            }
+        } catch (error) {
+            console.error('Failed to store scan results:', error);
+        }
+
+        // Update the main results area
+        document.getElementById('stats-section').classList.remove('hidden');
+        document.getElementById('episodes-count').textContent = allEpisodes.length;
+        document.getElementById('shows-count').textContent = showItems.length;
+
+        currentEpisodes = allEpisodes;
+        updateResultsTable(allEpisodes);
+
+        if (allErrors.length > 0) {
+            errorList.innerHTML = allErrors.map(e => `<li>${escapeHtml(e)}</li>`).join('');
+            errorSection.classList.remove('hidden');
+        }
+
+        if (allEpisodes.length > 0) {
+            await checkEligibility();
+        }
+
+        btn.disabled = false;
+        scanBtn.disabled = false;
+        btn.classList.remove('loading');
+        btn.textContent = 'Scan Individual All';
+    }
+
+    function setShowStatus(showId, status, episodeCount, errorMsg) {
+        const item   = document.getElementById(`show-progress-${showId}`);
+        const icon   = document.getElementById(`show-icon-${showId}`);
+        const detail = document.getElementById(`show-detail-${showId}`);
+        if (!item) return;
+
+        item.className = 'show-progress-item';
+
+        switch (status) {
+            case 'pending':
+                icon.textContent = '—';
+                detail.textContent = '';
+                break;
+            case 'scanning':
+                item.classList.add('sp-scanning');
+                icon.innerHTML = '<span class="progress-spinner"></span>';
+                detail.textContent = 'Scanning…';
+                break;
+            case 'done':
+                item.classList.add(episodeCount > 0 ? 'sp-done' : 'sp-done-empty');
+                icon.textContent = '✓';
+                detail.textContent = episodeCount > 0
+                    ? `${episodeCount} episode${episodeCount !== 1 ? 's' : ''} found`
+                    : 'None found';
+                break;
+            case 'error':
+                item.classList.add('sp-error');
+                icon.textContent = '✗';
+                detail.textContent = errorMsg || 'Error';
+                break;
+        }
+    }
+
+    async function checkEligibility() {
+        try {
+            const response = await fetch('{% url "shows:check_eligibility" %}', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': csrfToken,
+                },
+            });
+
+            const data = await response.json();
+
+            if (!response.ok || !data.success) {
+                throw new Error(data.error || 'Failed to check eligibility');
+            }
+
+            // Build eligibility map
+            eligibilityMap = {};
+            for (const elig of data.eligibilities) {
+                eligibilityMap[`${elig.show_id}_${elig.scanned_episode}`] = elig;
+            }
+
+            // Update table with eligibility status
+            updateResultsTableWithEligibility();
+
+            // Update eligible count and button
+            const eligibleCount = data.eligibilities.filter(e => e.is_eligible).length;
+            document.getElementById('eligible-count').textContent = eligibleCount;
+
+            const postBtn = document.getElementById('post-btn');
+            postBtn.textContent = `Post Eligible (${eligibleCount})`;
+            postBtn.disabled = eligibleCount === 0;
+
+        } catch (error) {
+            console.error('Eligibility check failed:', error);
+        }
+    }
+
+    async function postEligible() {
+        const postBtn = document.getElementById('post-btn');
+        const errorSection = document.getElementById('error-section');
+        const errorList = document.getElementById('error-list');
+
+        if (!confirm('Post all eligible episodes to Reddit?')) {
+            return;
+        }
+
+        postBtn.disabled = true;
+        postBtn.classList.add('loading');
+        postBtn.textContent = 'Posting...';
+
+        try {
+            const response = await fetch('{% url "shows:auto_post_episodes" %}', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': csrfToken,
+                },
+            });
+
+            const data = await response.json();
+
+            if (!response.ok || !data.success) {
+                throw new Error(data.error || 'Failed to post episodes');
+            }
+
+            // Show results
+            showPostResults(data);
+
+            // Update eligibility map with posted results
+            for (const posted of data.posted) {
+                const key = `${posted.show_id}_${posted.episode}`;
+                if (eligibilityMap[key]) {
+                    eligibilityMap[key].is_eligible = false;
+                    eligibilityMap[key].reason = 'posted';
+                    eligibilityMap[key].url = posted.url;
+                }
+            }
+
+            // Update table
+            updateResultsTableWithEligibility();
+
+            // Update button
+            const eligibleCount = Object.values(eligibilityMap).filter(e => e.is_eligible).length;
+            document.getElementById('eligible-count').textContent = eligibleCount;
+            postBtn.textContent = `Post Eligible (${eligibleCount})`;
+            postBtn.disabled = eligibleCount === 0;
+
+        } catch (error) {
+            errorList.innerHTML = `<li>${escapeHtml(error.message)}</li>`;
+            errorSection.classList.remove('hidden');
+        } finally {
+            postBtn.classList.remove('loading');
+        }
+    }
+
+    function showPostResults(data) {
+        const resultsSection = document.getElementById('post-results');
+        const postedSection = document.getElementById('posted-section');
+        const skippedSection = document.getElementById('skipped-section');
+        const failedSection = document.getElementById('failed-section');
+
+        // Posted
+        if (data.posted && data.posted.length > 0) {
+            document.getElementById('posted-list').innerHTML = data.posted.map(p =>
+                `<li>${escapeHtml(p.show_title)} Episode ${p.episode} - <a href="${escapeHtml(p.url)}" target="_blank">View Thread</a></li>`
+            ).join('');
+            postedSection.classList.remove('hidden');
+        } else {
+            postedSection.classList.add('hidden');
+        }
+
+        // Skipped
+        if (data.skipped && data.skipped.length > 0) {
+            document.getElementById('skipped-list').innerHTML = data.skipped.map(s =>
+                `<li>${escapeHtml(s.show_title)} Episode ${s.episode} - ${escapeHtml(s.reason)}</li>`
+            ).join('');
+            skippedSection.classList.remove('hidden');
+        } else {
+            skippedSection.classList.add('hidden');
+        }
+
+        // Failed
+        if (data.failed && data.failed.length > 0) {
+            document.getElementById('failed-list').innerHTML = data.failed.map(f =>
+                `<li>${escapeHtml(f.show_title)} Episode ${f.episode} - ${escapeHtml(f.error)}</li>`
+            ).join('');
+            failedSection.classList.remove('hidden');
+        } else {
+            failedSection.classList.add('hidden');
+        }
+
+        resultsSection.classList.remove('hidden');
+    }
+
+    function updateResultsTable(episodes) {
+        const tbody = document.getElementById('results-body');
+
+        if (!episodes || episodes.length === 0) {
+            tbody.innerHTML = `
+                <tr class="no-results-row">
+                    <td colspan="6">
+                        <div class="no-results">No episodes found in the last scan.</div>
+                    </td>
+                </tr>
+            `;
+            return;
+        }
+
+        tbody.innerHTML = episodes.map(ep => `
+            <tr data-show-id="${ep.show_id}" data-episode-number="${ep.episode_number}">
+                <td>${escapeHtml(ep.show_title)}</td>
+                <td>${ep.episode_number}</td>
+                <td><span class="status-badge status-pending">Checking...</span></td>
+                <td>${escapeHtml(ep.source)}</td>
+                <td>${formatDate(new Date(ep.found_at))}</td>
+                <td>
+                    <a href="${escapeHtml(ep.link)}" target="_blank" rel="noopener">View</a>
+                    <span class="torrent-title" title="${escapeHtml(ep.torrent_title)}">${escapeHtml(ep.torrent_title)}</span>
+                </td>
+            </tr>
+        `).join('');
+    }
+
+    function updateResultsTableWithEligibility() {
+        const tbody = document.getElementById('results-body');
+        const rows = tbody.querySelectorAll('tr[data-show-id]');
+
+        for (const row of rows) {
+            const showId = parseInt(row.dataset.showId);
+            const episodeNum = parseInt(row.dataset.episodeNumber);
+            const elig = eligibilityMap[`${showId}_${episodeNum}`];
+            const statusCell = row.querySelector('td:nth-child(3)');
+
+            if (!elig) {
+                statusCell.innerHTML = '<span class="status-badge status-pending">Unknown</span>';
+                continue;
+            }
+
+            if (elig.reason === 'posted' && elig.url) {
+                statusCell.innerHTML = `<span class="status-badge status-posted">Posted</span> <a href="${escapeHtml(elig.url)}" target="_blank">View</a>`;
+            } else if (elig.is_eligible) {
+                statusCell.innerHTML = '<span class="status-badge status-ready">Ready to Post</span>';
+            } else {
+                const reason = formatReason(elig.reason);
+                statusCell.innerHTML = `<span class="status-badge status-skipped" title="${escapeHtml(elig.reason)}">${escapeHtml(reason)}</span>`;
+            }
+        }
+    }
+
+    function formatReason(reason) {
+        if (reason.startsWith('already_posted')) return 'Already Posted';
+        if (reason.startsWith('gap_detected')) return 'Gap Detected';
+        if (reason.startsWith('not_first_episode')) return 'Not First Episode';
+        if (reason.startsWith('non_numeric_latest')) return 'Non-numeric Latest';
+        return reason;
+    }
+
+    function formatDate(date) {
+        const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+        const month = months[date.getMonth()];
+        const day = date.getDate();
+        const hours = String(date.getHours()).padStart(2, '0');
+        const minutes = String(date.getMinutes()).padStart(2, '0');
+        return `${month} ${day}, ${hours}:${minutes}`;
+    }
+
+    function escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
+
+    // Check eligibility on page load if there are existing scan results
+    document.addEventListener('DOMContentLoaded', function() {
+        const rows = document.querySelectorAll('#results-body tr[data-show-id]');
+        if (rows.length > 0) {
+            checkEligibility();
+        }
+    });
+</script>
+
+<!-- Scheduled Scan Results Section -->
+{% if latest_db_scan %}
+<div class="scheduled-results">
+    <h3>
+        Latest Scheduled Scan
+        <span class="status-badge {% if latest_db_scan.trigger_type == 'scheduled' %}status-ready{% else %}status-pending{% endif %}">
+            {{ latest_db_scan.trigger_type|title }}
+        </span>
+    </h3>
+    <div class="scan-meta">
+        <span>{{ latest_db_scan.scan_time|date:"M d, Y H:i:s" }}</span>
+        <span>{% if latest_db_scan.completed %}Completed{% else %}In Progress{% endif %}</span>
+    </div>
+    <div class="scan-stats">
+        <div class="stat">
+            <span class="stat-label">Shows:</span>
+            <span class="stat-value">{{ latest_db_scan.shows_scanned }}</span>
+        </div>
+        <div class="stat">
+            <span class="stat-label">Found:</span>
+            <span class="stat-value">{{ latest_db_scan.episodes_found }}</span>
+        </div>
+        <div class="stat">
+            <span class="stat-label">Posted:</span>
+            <span class="stat-value">{{ latest_db_scan.episodes_posted }}</span>
+        </div>
+        <div class="stat">
+            <span class="stat-label">Skipped:</span>
+            <span class="stat-value">{{ latest_db_scan.episodes_skipped }}</span>
+        </div>
+        <div class="stat">
+            <span class="stat-label">Failed:</span>
+            <span class="stat-value">{{ latest_db_scan.episodes_failed }}</span>
+        </div>
+    </div>
+
+    {% if latest_db_scan.scan_episodes.exists %}
+    <table class="scheduled-episodes-table">
+        <thead>
+            <tr>
+                <th>Show</th>
+                <th>Episode</th>
+                <th>Status</th>
+                <th>Reason</th>
+                <th>Discussion</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for ep in latest_db_scan.scan_episodes.all %}
+            <tr>
+                <td>{{ ep.show.title }}</td>
+                <td>{{ ep.episode_number }}</td>
+                <td>
+                    <span class="status-badge
+                        {% if ep.status == 'posted' %}status-posted
+                        {% elif ep.status == 'eligible' %}status-ready
+                        {% elif ep.status == 'skipped' %}status-skipped
+                        {% elif ep.status == 'failed' %}status-failed
+                        {% else %}status-pending{% endif %}">
+                        {{ ep.status|title }}
+                    </span>
+                </td>
+                <td>{{ ep.status_reason|default:"-" }}</td>
+                <td>
+                    {% if ep.discussion_url %}
+                        <a href="{{ ep.discussion_url }}" target="_blank">View</a>
+                    {% else %}
+                        -
+                    {% endif %}
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <p class="no-results">No episodes found in this scan.</p>
+    {% endif %}
+
+    {% if latest_db_scan.errors %}
+    <div class="error-section" style="margin-top: 15px;">
+        <h4>Errors</h4>
+        <ul>
+            {% for error in latest_db_scan.errors %}
+            <li>{{ error }}</li>
+            {% endfor %}
+        </ul>
+    </div>
+    {% endif %}
+</div>
+{% endif %}
+
+{% endblock %}

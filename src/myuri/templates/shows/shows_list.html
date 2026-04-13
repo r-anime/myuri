@@ -1,0 +1,1069 @@
+{% extends "base.html" %}
+
+{% block title %}Shows - Anime Discussion Manager{% endblock %}
+
+{% block content %}
+<div class="shows-layout">
+    <!-- Sidebar -->
+    <aside class="shows-sidebar">
+        <div class="search-box">
+            <input type="text" id="show-search" placeholder="Search shows..." class="search-input" autocomplete="off">
+        </div>
+        <ul class="shows-nav" id="shows-list">
+            {% for season, season_shows in seasons_with_shows %}
+            <li class="season-header" data-season="{{ season.id }}">{{ season }}</li>
+            {% for show in season_shows %}
+            <li class="show-item {% if selected_show.id == show.id %}active{% endif %}"
+                data-title="{{ show.title|lower }}"
+                data-title-en="{{ show.title_en|lower }}"
+                data-aliases="{{ show.aliases|lower }}"
+                data-season-id="{{ season.id }}">
+                <a href="{% url 'shows:show_detail' show.id %}">{{ show.title }}</a>
+            </li>
+            {% endfor %}
+            {% endfor %}
+        </ul>
+        <p class="no-results" id="no-results" style="display: none;">No shows found</p>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="show-content">
+        {% if selected_show %}
+        <div class="show-header">
+            <div class="show-title-row">
+                <h2>{{ selected_show.title }}</h2>
+                <a href="{% url 'admin:shows_show_change' selected_show.id %}" class="manage-btn">Manage</a>
+            </div>
+            {% if selected_show.title_en %}
+            <p class="title-en">{{ selected_show.title_en }}</p>
+            {% endif %}
+            <div class="show-details">
+                <span class="season">{{ selected_show.season }}</span>
+                {% if selected_show.episode_count %}
+                <span class="episode-count">{{ selected_show.episode_count }} Episodes</span>
+                {% endif %}
+                {% if selected_show.franchise %}
+                <span class="franchise">{{ selected_show.franchise.name }}</span>
+                {% endif %}
+                {% if selected_show.has_source %}
+                <span class="badge">Has Source</span>
+                {% endif %}
+            </div>
+        </div>
+
+        <div class="show-body">
+            <!-- Episodes Column -->
+            <div class="episodes-column">
+                <h3>Episodes</h3>
+                <ul class="episodes-list">
+                    {% for episode in episodes %}
+                    <li class="episode-row {% if episode.is_special %}special{% endif %}{% if episode.scheduled_for_removal %} removed{% endif %}">
+                        <span class="ep-number">{{ episode.number }}</span>
+                        <span class="ep-date">{{ episode.air_date|date:"M d, Y H:i"|default:"-" }}</span>
+                        {% if episode.scheduled_for_removal %}
+                        <span class="removed-badge">Removed</span>
+                        {% elif episode.discussion_url %}
+                        <a href="{{ episode.discussion_url }}" target="_blank" class="ep-link">View</a>
+                        <button class="remove-btn" data-episode-id="{{ episode.id }}" data-show-title="{{ episode.show.title }}" data-episode-number="{{ episode.number }}" title="Remove episode">X</button>
+                        {% endif %}
+                    </li>
+                    {% empty %}
+                    <li class="empty">No episodes</li>
+                    {% endfor %}
+                </ul>
+            </div>
+
+            <!-- Actions Column -->
+            <div class="actions-column">
+                <h3>Actions</h3>
+                <div class="action-buttons">
+                    <button class="btn action-btn" id="fire-next-episode-btn"
+                            data-show-id="{{ selected_show.id }}"
+                            data-show-title="{{ selected_show.title }}"
+                            data-next-episode="{% if last_active_episode %}{{ last_active_episode.number|add:1 }}{% else %}1{% endif %}">
+                        Fire Next Episode
+                    </button>
+                    {% if selected_show.batch_release %}
+                    <button class="btn action-btn" id="fire-batch-btn"
+                            data-show-id="{{ selected_show.id }}"
+                            data-show-title="{{ selected_show.title }}"
+                            data-episode-count="{{ selected_show.episode_count|default:'' }}"
+                            data-existing-episodes="{% for ep in episodes %}{{ ep.number }}{% if not forloop.last %},{% endif %}{% endfor %}">
+                        Fire Episode Batch
+                    </button>
+                    {% endif %}
+<!--                    <button class="btn action-btn secondary" onclick="alert('Schedule Post Time - Coming soon')">-->
+<!--                        Schedule Post Time-->
+<!--                    </button>-->
+                    {% if episodes %}
+                    <button class="btn action-btn secondary" id="batch-update-btn"
+                            data-show-id="{{ selected_show.id }}"
+                            data-show-title="{{ selected_show.title }}"
+                            data-episode-count="{{ episodes|length }}">
+                        Batch Update Threads
+                    </button>
+                    {% endif %}
+                </div>
+                <div id="episode-result" class="episode-result" style="display: none;"></div>
+            </div>
+        </div>
+        {% else %}
+        <div class="no-show">
+            <p>Select a show from the sidebar</p>
+        </div>
+        {% endif %}
+    </main>
+</div>
+
+<style>
+    .shows-layout {
+        display: flex;
+        gap: 20px;
+        margin: -20px;
+        min-height: 500px;
+    }
+
+    /* Sidebar */
+    .shows-sidebar {
+        width: 220px;
+        flex-shrink: 0;
+        background: var(--bg-tertiary);
+        border-right: 1px solid var(--border-light);
+        padding: 15px;
+    }
+
+    .search-box {
+        margin-bottom: 15px;
+    }
+
+    .search-input {
+        width: 100%;
+        padding: 8px 10px;
+        border: 1px solid var(--border-color);
+        border-radius: 4px;
+        font-size: 0.9em;
+        box-sizing: border-box;
+        background: var(--input-bg);
+        color: var(--text-primary);
+    }
+
+    .search-input:focus {
+        outline: none;
+        border-color: var(--accent-color);
+    }
+
+    .shows-nav {
+        list-style: none;
+        padding: 0;
+        margin: 0;
+    }
+
+    .shows-nav li {
+        margin-bottom: 2px;
+    }
+
+    .shows-nav li a {
+        display: block;
+        padding: 8px 10px;
+        color: var(--text-primary);
+        text-decoration: none;
+        font-size: 0.85em;
+        border-radius: 4px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    .shows-nav li a:hover {
+        background: var(--border-light);
+    }
+
+    .shows-nav li.active a {
+        background: var(--accent-color);
+        color: white;
+    }
+
+    .shows-nav li.empty {
+        color: var(--text-muted);
+        font-size: 0.85em;
+        padding: 8px 10px;
+    }
+
+    .shows-nav .season-header {
+        font-size: 0.7rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        color: var(--text-muted, #888);
+        padding: 0.6rem 0.75rem 0.2rem;
+        pointer-events: none;
+        border-top: 1px solid var(--border-color, #333);
+        margin-top: 0.25rem;
+    }
+
+    .shows-nav .season-header:first-child {
+        border-top: none;
+        margin-top: 0;
+    }
+
+    .no-results {
+        color: var(--text-muted);
+        font-size: 0.85em;
+        padding: 8px 10px;
+        margin: 0;
+        font-style: italic;
+    }
+
+    /* Main Content */
+    .show-content {
+        flex: 1;
+        padding: 20px;
+        overflow: hidden;
+    }
+
+    .show-header {
+        margin-bottom: 20px;
+        padding-bottom: 15px;
+        border-bottom: 2px solid var(--accent-color);
+    }
+
+    .show-title-row {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+    }
+
+    .show-header h2 {
+        margin: 0 0 5px 0;
+    }
+
+    .manage-btn {
+        font-size: 0.75em;
+        padding: 4px 10px;
+        background: #6c757d;
+        color: white;
+        text-decoration: none;
+        border-radius: 4px;
+        margin-bottom: 5px;
+    }
+
+    .manage-btn:hover {
+        background: #5a6268;
+    }
+
+    .show-header .title-en {
+        color: var(--text-muted);
+        margin: 0 0 10px 0;
+    }
+
+    .show-details {
+        display: flex;
+        gap: 10px;
+        flex-wrap: wrap;
+    }
+
+    .show-details .season {
+        color: var(--accent-color);
+        font-weight: 500;
+    }
+
+    .show-details .franchise {
+        color: var(--text-muted);
+    }
+
+    .show-details .episode-count {
+        color: var(--text-secondary);
+    }
+
+    .show-details .badge {
+        background: var(--bg-tertiary);
+        color: var(--text-secondary);
+        padding: 2px 8px;
+        border-radius: 12px;
+        font-size: 0.8em;
+    }
+
+    /* Show Body */
+    .show-body {
+        display: flex;
+        gap: 30px;
+    }
+
+    /* Episodes Column */
+    .episodes-column {
+        flex: 1;
+        min-width: 0;
+    }
+
+    .episodes-column h3 {
+        margin: 0 0 15px 0;
+        font-size: 1em;
+        color: var(--text-secondary);
+    }
+
+    .episodes-list {
+        list-style: none;
+        padding: 0;
+        margin: 0;
+    }
+
+    .episode-row {
+        display: flex;
+        gap: 10px;
+        padding: 8px 0;
+        border-bottom: 1px solid var(--border-light);
+        font-size: 0.9em;
+        align-items: center;
+    }
+
+    .episode-row.special {
+        background: var(--bg-tertiary);
+        margin: 0 -10px;
+        padding: 8px 10px;
+    }
+
+    .episode-row .ep-number {
+        font-weight: 600;
+        min-width: 50px;
+    }
+
+    .episode-row .ep-date {
+        flex: 1;
+        color: var(--text-muted);
+        font-size: 0.9em;
+    }
+
+    .episode-row .ep-link {
+        color: var(--accent-color);
+        text-decoration: none;
+        font-size: 0.85em;
+    }
+
+    .episode-row .ep-link:hover {
+        text-decoration: underline;
+    }
+
+    .episode-row.removed {
+        opacity: 0.5;
+    }
+
+    .removed-badge {
+        background: #c00;
+        color: white;
+        padding: 2px 6px;
+        border-radius: 4px;
+        font-size: 0.75em;
+    }
+
+    .remove-btn {
+        background: transparent;
+        border: 1px solid #c00;
+        color: #c00;
+        width: 20px;
+        height: 20px;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 0.75em;
+        font-weight: bold;
+        padding: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: background 0.2s, color 0.2s;
+        margin-left: 8px;
+    }
+
+    .remove-btn:hover {
+        background: #c00;
+        color: white;
+    }
+
+    .remove-btn.loading {
+        opacity: 0.5;
+        cursor: not-allowed;
+    }
+
+    .episodes-list .empty {
+        color: var(--text-muted);
+        font-style: italic;
+    }
+
+    /* Actions Column */
+    .actions-column {
+        width: 180px;
+        flex-shrink: 0;
+    }
+
+    .actions-column h3 {
+        margin: 0 0 15px 0;
+        font-size: 1em;
+        color: var(--text-secondary);
+    }
+
+    .action-buttons {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+    }
+
+    .action-btn {
+        width: 100%;
+        text-align: center;
+        font-size: 0.9em;
+        padding: 12px 15px;
+    }
+
+    .action-btn.secondary {
+        background: #666;
+    }
+
+    .action-btn.secondary:hover {
+        background: #555;
+    }
+
+    .no-show {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        height: 300px;
+        color: var(--text-muted);
+    }
+
+    /* Episode result message */
+    .episode-result {
+        margin-top: 15px;
+        padding: 10px;
+        border-radius: 4px;
+        font-size: 0.9em;
+    }
+
+    .episode-result.success {
+        background: var(--success-bg);
+        color: var(--success-text);
+    }
+
+    .episode-result.error {
+        background: var(--error-bg);
+        color: var(--error-text);
+    }
+
+    .episode-result a {
+        color: inherit;
+        font-weight: 600;
+    }
+
+    /* Confirm dialog */
+    .confirm-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0, 0, 0, 0.5);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 1000;
+    }
+
+    .confirm-dialog {
+        background: var(--bg-secondary);
+        color: var(--text-primary);
+        padding: 20px;
+        border-radius: 8px;
+        max-width: 400px;
+        box-shadow: 0 4px 20px var(--shadow-color);
+    }
+
+    .confirm-dialog h4 {
+        margin: 0 0 10px 0;
+    }
+
+    .confirm-dialog p {
+        margin: 0 0 20px 0;
+        color: var(--text-muted);
+    }
+
+    .confirm-dialog .dialog-buttons {
+        display: flex;
+        gap: 10px;
+        justify-content: flex-end;
+    }
+
+    .confirm-dialog .btn-cancel {
+        background: #666;
+    }
+
+    .confirm-dialog .btn-cancel:hover {
+        background: #555;
+    }
+
+    /* Loading state */
+    .btn.loading {
+        opacity: 0.7;
+        cursor: not-allowed;
+    }
+
+    /* Dialog form inputs */
+    .dialog-form {
+        margin-bottom: 20px;
+    }
+
+    .dialog-form .form-row {
+        display: flex;
+        gap: 15px;
+        margin-bottom: 10px;
+    }
+
+    .dialog-form .form-group {
+        flex: 1;
+    }
+
+    .dialog-form label {
+        display: block;
+        margin-bottom: 5px;
+        font-size: 0.9em;
+        color: var(--text-secondary);
+    }
+
+    .dialog-form input {
+        width: 100%;
+        padding: 8px 10px;
+        border: 1px solid var(--border-color);
+        border-radius: 4px;
+        font-size: 1em;
+        box-sizing: border-box;
+        background: var(--input-bg);
+        color: var(--text-primary);
+    }
+
+    .dialog-form input:focus {
+        outline: none;
+        border-color: var(--accent-color);
+    }
+</style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Search functionality
+    const searchInput = document.getElementById('show-search');
+    const showsList = document.getElementById('shows-list');
+    const showItems = showsList.querySelectorAll('.show-item');
+    const noResults = document.getElementById('no-results');
+
+    searchInput.addEventListener('input', function() {
+        const query = this.value.toLowerCase().trim();
+        let visibleCount = 0;
+
+        showItems.forEach(function(item) {
+            const title = item.dataset.title || '';
+            const titleEn = item.dataset.titleEn || '';
+            const aliases = item.dataset.aliases || '';
+
+            const matches = query === '' ||
+                title.includes(query) ||
+                titleEn.includes(query) ||
+                aliases.includes(query);
+
+            if (matches) {
+                item.style.display = '';
+                visibleCount++;
+            } else {
+                item.style.display = 'none';
+            }
+        });
+
+        noResults.style.display = visibleCount === 0 ? '' : 'none';
+
+        const seasonHeaders = showsList.querySelectorAll('.season-header');
+        seasonHeaders.forEach(function(header) {
+            const seasonId = header.dataset.season;
+            const hasVisible = Array.from(
+                showsList.querySelectorAll(`.show-item[data-season-id="${seasonId}"]`)
+            ).some(item => item.style.display !== 'none');
+            header.style.display = hasVisible ? '' : 'none';
+        });
+    });
+
+    // Fire Next Episode functionality
+    const fireBtn = document.getElementById('fire-next-episode-btn');
+    if (fireBtn) {
+        fireBtn.addEventListener('click', function() {
+            const showId = this.dataset.showId;
+            const showTitle = this.dataset.showTitle;
+            const nextEpisode = this.dataset.nextEpisode;
+
+            // Show confirm dialog
+            showConfirmDialog(showTitle, nextEpisode, function() {
+                fireNextEpisode(showId);
+            });
+        });
+    }
+
+    function showConfirmDialog(showTitle, nextEpisode, onConfirm) {
+        const overlay = document.createElement('div');
+        overlay.className = 'confirm-overlay';
+        overlay.innerHTML = `
+            <div class="confirm-dialog">
+                <h4>Are you sure?</h4>
+                <p>Post the next episode discussion for:</p>
+                <p><strong>${escapeHtml(showTitle)} - Episode ${escapeHtml(nextEpisode)}</strong></p>
+                <div class="dialog-buttons">
+                    <button class="btn btn-cancel" id="confirm-cancel">Cancel</button>
+                    <button class="btn" id="confirm-ok">Post to Reddit</button>
+                </div>
+            </div>
+        `;
+        document.body.appendChild(overlay);
+
+        document.getElementById('confirm-cancel').addEventListener('click', function() {
+            overlay.remove();
+        });
+
+        document.getElementById('confirm-ok').addEventListener('click', function() {
+            overlay.remove();
+            onConfirm();
+        });
+
+        overlay.addEventListener('click', function(e) {
+            if (e.target === overlay) {
+                overlay.remove();
+            }
+        });
+    }
+
+    function fireNextEpisode(showId) {
+        const btn = document.getElementById('fire-next-episode-btn');
+        const resultDiv = document.getElementById('episode-result');
+
+        // Show loading state
+        btn.classList.add('loading');
+        btn.disabled = true;
+        btn.textContent = 'Posting...';
+
+        fetch(`/shows/${showId}/fire-episode/`, {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': getCsrfToken(),
+                'Content-Type': 'application/json',
+            },
+        })
+        .then(response => response.json())
+        .then(data => {
+            resultDiv.style.display = 'block';
+            if (data.success) {
+                resultDiv.className = 'episode-result success';
+                let message = `Episode ${data.episode_number} posted! <a href="${data.discussion_url}" target="_blank">View on Reddit</a>`;
+                if (data.updated_count > 0) {
+                    message += `<br><small>Updated ${data.updated_count} previous episode${data.updated_count !== 1 ? 's' : ''}</small>`;
+                }
+                resultDiv.innerHTML = message;
+                // Reload the page to show the new episode
+                setTimeout(() => location.reload(), 2000);
+            } else {
+                resultDiv.className = 'episode-result error';
+                resultDiv.textContent = 'Error: ' + data.error;
+            }
+        })
+        .catch(error => {
+            resultDiv.style.display = 'block';
+            resultDiv.className = 'episode-result error';
+            resultDiv.textContent = 'Error: ' + error.message;
+        })
+        .finally(() => {
+            btn.classList.remove('loading');
+            btn.disabled = false;
+            btn.textContent = 'Fire Next Episode';
+        });
+    }
+
+    function getCsrfToken() {
+        // Get CSRF token from cookie
+        const name = 'csrftoken';
+        const cookies = document.cookie.split(';');
+        for (let cookie of cookies) {
+            cookie = cookie.trim();
+            if (cookie.startsWith(name + '=')) {
+                return cookie.substring(name.length + 1);
+            }
+        }
+        return '';
+    }
+
+    function escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
+
+    // Fire Episode Batch functionality
+    const batchBtn = document.getElementById('fire-batch-btn');
+    if (batchBtn) {
+        batchBtn.addEventListener('click', function() {
+            const showId = this.dataset.showId;
+            const showTitle = this.dataset.showTitle;
+            const episodeCount = this.dataset.episodeCount;
+            const existingEpisodes = this.dataset.existingEpisodes;
+
+            // Parse existing episodes into a set of numbers
+            const existingSet = new Set();
+            if (existingEpisodes) {
+                existingEpisodes.split(',').forEach(ep => {
+                    const num = parseInt(ep.trim(), 10);
+                    if (!isNaN(num)) {
+                        existingSet.add(num);
+                    }
+                });
+            }
+
+            showBatchDialog(showTitle, episodeCount, existingSet, function(startEp, endEp) {
+                fireEpisodeBatch(showId, startEp, endEp);
+            });
+        });
+    }
+
+    function showBatchDialog(showTitle, episodeCount, existingEpisodes, onConfirm) {
+        const defaultStart = '1';
+        const defaultEnd = episodeCount || '';
+
+        const overlay = document.createElement('div');
+        overlay.className = 'confirm-overlay';
+        overlay.innerHTML = `
+            <div class="confirm-dialog">
+                <h4>Fire Episode Batch</h4>
+                <p>Post multiple episode discussions for:</p>
+                <p><strong>${escapeHtml(showTitle)}</strong></p>
+                <div class="dialog-form">
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="batch-start">Start Episode</label>
+                            <input type="number" id="batch-start" min="1" value="${defaultStart}">
+                        </div>
+                        <div class="form-group">
+                            <label for="batch-end">End Episode</label>
+                            <input type="number" id="batch-end" min="1" value="${defaultEnd}">
+                        </div>
+                    </div>
+                </div>
+                <div class="dialog-buttons">
+                    <button class="btn btn-cancel" id="batch-cancel">Cancel</button>
+                    <button class="btn" id="batch-ok">Post to Reddit</button>
+                </div>
+            </div>
+        `;
+        document.body.appendChild(overlay);
+
+        document.getElementById('batch-cancel').addEventListener('click', function() {
+            overlay.remove();
+        });
+
+        document.getElementById('batch-ok').addEventListener('click', function() {
+            const startEp = document.getElementById('batch-start').value;
+            const endEp = document.getElementById('batch-end').value;
+
+            if (!startEp || !endEp) {
+                alert('Please enter both start and end episode numbers');
+                return;
+            }
+
+            const start = parseInt(startEp, 10);
+            const end = parseInt(endEp, 10);
+
+            if (start > end) {
+                alert('Start episode must be less than or equal to end episode');
+                return;
+            }
+
+            if (end - start + 1 > 100) {
+                alert('Maximum 100 episodes can be posted at once');
+                return;
+            }
+
+            // Check for overlapping episodes
+            const overlapping = [];
+            for (let i = start; i <= end; i++) {
+                if (existingEpisodes.has(i)) {
+                    overlapping.push(i);
+                }
+            }
+
+            overlay.remove();
+
+            if (overlapping.length > 0) {
+                // Show warning dialog for overlapping episodes
+                showOverlapWarning(overlapping, function() {
+                    onConfirm(start, end);
+                });
+            } else {
+                onConfirm(start, end);
+            }
+        });
+
+        overlay.addEventListener('click', function(e) {
+            if (e.target === overlay) {
+                overlay.remove();
+            }
+        });
+    }
+
+    function showOverlapWarning(overlappingEpisodes, onConfirm) {
+        const episodeList = overlappingEpisodes.length <= 10
+            ? overlappingEpisodes.join(', ')
+            : overlappingEpisodes.slice(0, 10).join(', ') + ` ... and ${overlappingEpisodes.length - 10} more`;
+
+        const overlay = document.createElement('div');
+        overlay.className = 'confirm-overlay';
+        overlay.innerHTML = `
+            <div class="confirm-dialog">
+                <h4>Warning: Overlapping Episodes</h4>
+                <p>The following episodes already exist:</p>
+                <p><strong>Episodes: ${escapeHtml(episodeList)}</strong></p>
+                <p style="color: #c00;">Posting will create duplicate discussion threads for these episodes.</p>
+                <p>Are you sure you want to continue?</p>
+                <div class="dialog-buttons">
+                    <button class="btn btn-cancel" id="overlap-cancel">Cancel</button>
+                    <button class="btn" id="overlap-ok" style="background: #c00;">Continue Anyway</button>
+                </div>
+            </div>
+        `;
+        document.body.appendChild(overlay);
+
+        document.getElementById('overlap-cancel').addEventListener('click', function() {
+            overlay.remove();
+        });
+
+        document.getElementById('overlap-ok').addEventListener('click', function() {
+            overlay.remove();
+            onConfirm();
+        });
+
+        overlay.addEventListener('click', function(e) {
+            if (e.target === overlay) {
+                overlay.remove();
+            }
+        });
+    }
+
+    function fireEpisodeBatch(showId, startEp, endEp) {
+        const btn = document.getElementById('fire-batch-btn');
+        const resultDiv = document.getElementById('episode-result');
+
+        // Show loading state
+        btn.classList.add('loading');
+        btn.disabled = true;
+        btn.textContent = 'Posting...';
+
+        fetch(`/shows/${showId}/fire-episode-batch/`, {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': getCsrfToken(),
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                start_episode: startEp,
+                end_episode: endEp,
+            }),
+        })
+        .then(response => response.json())
+        .then(data => {
+            resultDiv.style.display = 'block';
+            if (data.success) {
+                resultDiv.className = 'episode-result success';
+                let message = `Megathread + Episodes ${data.start_episode}-${data.end_episode} posted! (${data.episodes_posted} episodes)`;
+                if (data.megathread_url) {
+                    message += `<br><small><a href="${data.megathread_url}" target="_blank">View Megathread</a></small>`;
+                }
+                if (data.updated_count > 0) {
+                    message += `<br><small>Updated ${data.updated_count} previous episode${data.updated_count !== 1 ? 's' : ''}</small>`;
+                }
+                resultDiv.innerHTML = message;
+                // Reload the page to show the new episodes
+                setTimeout(() => location.reload(), 3000);
+            } else {
+                resultDiv.className = 'episode-result error';
+                resultDiv.textContent = 'Error: ' + data.error;
+            }
+        })
+        .catch(error => {
+            resultDiv.style.display = 'block';
+            resultDiv.className = 'episode-result error';
+            resultDiv.textContent = 'Error: ' + error.message;
+        })
+        .finally(() => {
+            btn.classList.remove('loading');
+            btn.disabled = false;
+            btn.textContent = 'Fire Episode Batch';
+        });
+    }
+
+    // Batch Update Threads functionality
+    const batchUpdateBtn = document.getElementById('batch-update-btn');
+    if (batchUpdateBtn) {
+        batchUpdateBtn.addEventListener('click', function() {
+            const showId = this.dataset.showId;
+            const showTitle = this.dataset.showTitle;
+            const episodeCount = parseInt(this.dataset.episodeCount, 10) || 0;
+
+            showBatchUpdateDialog(showTitle, episodeCount, function() {
+                batchUpdateThreads(showId);
+            });
+        });
+    }
+
+    function showBatchUpdateDialog(showTitle, episodeCount, onConfirm) {
+        const threadsToUpdate = Math.min(episodeCount, 30);
+
+        const overlay = document.createElement('div');
+        overlay.className = 'confirm-overlay';
+        overlay.innerHTML = `
+            <div class="confirm-dialog">
+                <h4>Batch Update Threads</h4>
+                <p>Update existing discussion threads for:</p>
+                <p><strong>${escapeHtml(showTitle)}</strong></p>
+                <p>This will edit the <strong>${threadsToUpdate}</strong> most recent episode thread${threadsToUpdate !== 1 ? 's' : ''} to refresh:</p>
+                <ul style="text-align: left; margin: 10px 0; padding-left: 20px; color: #555;">
+                    <li>Streaming links</li>
+                    <li>Information links</li>
+                    <li>Episode discussions table</li>
+                    <li>Show aliases</li>
+                </ul>
+                ${episodeCount > 30 ? `<p style="color: #666; font-size: 0.9em;"><em>Note: Only the latest 30 episodes will be updated (${episodeCount - 30} older episodes will be skipped).</em></p>` : ''}
+                <div class="dialog-buttons">
+                    <button class="btn btn-cancel" id="batch-update-cancel">Cancel</button>
+                    <button class="btn" id="batch-update-ok">Edit ${threadsToUpdate} Thread${threadsToUpdate !== 1 ? 's' : ''}</button>
+                </div>
+            </div>
+        `;
+        document.body.appendChild(overlay);
+
+        document.getElementById('batch-update-cancel').addEventListener('click', function() {
+            overlay.remove();
+        });
+
+        document.getElementById('batch-update-ok').addEventListener('click', function() {
+            overlay.remove();
+            onConfirm();
+        });
+
+        overlay.addEventListener('click', function(e) {
+            if (e.target === overlay) {
+                overlay.remove();
+            }
+        });
+    }
+
+    function batchUpdateThreads(showId) {
+        const btn = document.getElementById('batch-update-btn');
+        const resultDiv = document.getElementById('episode-result');
+
+        // Show loading state
+        btn.classList.add('loading');
+        btn.disabled = true;
+        btn.textContent = 'Updating...';
+
+        fetch(`/shows/${showId}/batch-update-threads/`, {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': getCsrfToken(),
+                'Content-Type': 'application/json',
+            },
+        })
+        .then(response => response.json())
+        .then(data => {
+            resultDiv.style.display = 'block';
+            if (data.success) {
+                resultDiv.className = 'episode-result success';
+                resultDiv.innerHTML = `Updated ${data.updated_count} thread${data.updated_count !== 1 ? 's' : ''} successfully!`;
+            } else {
+                resultDiv.className = 'episode-result error';
+                resultDiv.textContent = 'Error: ' + data.error;
+            }
+        })
+        .catch(error => {
+            resultDiv.style.display = 'block';
+            resultDiv.className = 'episode-result error';
+            resultDiv.textContent = 'Error: ' + error.message;
+        })
+        .finally(() => {
+            btn.classList.remove('loading');
+            btn.disabled = false;
+            btn.textContent = 'Batch Update Threads';
+        });
+    }
+
+    // Remove episode functionality
+    document.querySelectorAll('.remove-btn').forEach(function(btn) {
+        btn.addEventListener('click', function() {
+            const episodeId = this.dataset.episodeId;
+            const showTitle = this.dataset.showTitle;
+            const episodeNumber = this.dataset.episodeNumber;
+
+            showRemoveDialog(showTitle, episodeNumber, function() {
+                removeEpisode(episodeId, btn);
+            });
+        });
+    });
+
+    function showRemoveDialog(showTitle, episodeNumber, onConfirm) {
+        const overlay = document.createElement('div');
+        overlay.className = 'confirm-overlay';
+        overlay.innerHTML = `
+            <div class="confirm-dialog">
+                <h4>Remove Episode?</h4>
+                <p><strong>${escapeHtml(showTitle)} - Episode ${escapeHtml(episodeNumber)}</strong></p>
+                <p style="color: #c00; font-weight: 500;">This will remove the Reddit thread. This action cannot be undone.</p>
+                <div class="dialog-buttons">
+                    <button class="btn btn-cancel" id="remove-cancel">Cancel</button>
+                    <button class="btn" id="remove-confirm" style="background: #c00;">Remove</button>
+                </div>
+            </div>
+        `;
+        document.body.appendChild(overlay);
+
+        document.getElementById('remove-cancel').addEventListener('click', function() {
+            overlay.remove();
+        });
+
+        document.getElementById('remove-confirm').addEventListener('click', function() {
+            overlay.remove();
+            onConfirm();
+        });
+
+        overlay.addEventListener('click', function(e) {
+            if (e.target === overlay) {
+                overlay.remove();
+            }
+        });
+    }
+
+    function removeEpisode(episodeId, btn) {
+        btn.classList.add('loading');
+        btn.disabled = true;
+
+        fetch(`/episode/${episodeId}/remove/`, {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': getCsrfToken(),
+                'Content-Type': 'application/json',
+            },
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                // Reload the page to show updated state
+                location.reload();
+            } else {
+                alert('Error: ' + data.error);
+                btn.classList.remove('loading');
+                btn.disabled = false;
+            }
+        })
+        .catch(error => {
+            alert('Error: ' + error.message);
+            btn.classList.remove('loading');
+            btn.disabled = false;
+        });
+    }
+});
+</script>
+{% endblock %}

@@ -1,0 +1,119 @@
+# Sample YAML file for loading anime shows into the database
+# py manage.py load_shows sample_shows.yaml
+
+link_types:
+  - name: MyAnimeList
+    slug: mal
+    category: info
+    display_order: 1
+  - name: AniList
+    slug: anilist
+    category: info
+    display_order: 2
+  - name: AniDB
+    slug: anidb
+    category: info
+    display_order: 3
+  - name: Crunchyroll
+    slug: crunchyroll
+    category: stream
+    display_order: 10
+  - name: Funimation
+    slug: funimation
+    category: stream
+    display_order: 11
+  - name: Netflix
+    slug: netflix
+    category: stream
+    display_order: 12
+  - name: HIDIVE
+    slug: hidive
+    category: stream
+    display_order: 13
+
+franchises:
+  - name: Sword Art Online
+  - name: My Hero Academia
+
+seasons:
+  - year: 2024
+    season: winter
+  - year: 2024
+    season: spring
+  - year: 2024
+    season: summer
+  - year: 2024
+    season: fall
+
+shows:
+  - title: Sousou no Frieren
+    title_en: "Frieren: Beyond Journey's End"
+    aliases:
+      - Frieren
+      - Frieren at the Funeral
+    has_source: true
+    season:
+      year: 2024
+      season: winter
+    links:
+      - type: mal
+        url: https://myanimelist.net/anime/52991
+      - type: crunchyroll
+        url: https://www.crunchyroll.com/series/frieren
+    episodes:
+      - number: 1
+        title: "The Journey's End"
+        air_date: 2024-01-05
+      - number: 2
+        title: "It Didn't Have to Be Magic"
+        air_date: 2024-01-12
+      - number: 3
+        title: Killing Magic
+        air_date: 2024-01-19
+
+  - title: Boku no Hero Academia 7th Season
+    title_en: My Hero Academia Season 7
+    has_source: true
+    franchise: My Hero Academia
+    season:
+      year: 2024
+      season: spring
+    links:
+      - type: mal
+        url: https://myanimelist.net/anime/54789
+      - type: crunchyroll
+        url: https://www.crunchyroll.com/series/my-hero-academia
+    episodes:
+      - number: 1
+        title: "In the Nick of Time! A Big-Time Quirk Battle"
+        air_date: 2024-04-06
+      - number: 2
+        air_date: 2024-04-13
+
+  - title: "Sword Art Online Alternative: Gun Gale Online II"
+    title_en: SAO Alternative GGO II
+    has_source: true
+    enabled: true  # Set to false when show completes
+    franchise: Sword Art Online
+    season:
+      year: 2024
+      season: fall
+    links:
+      - type: mal
+        url: https://myanimelist.net/anime/55994
+    episodes:
+      # Order defaults to position * 10 (10, 20, 30...) if not specified
+      # Use explicit order to place OVAs between episodes
+      - number: 1
+        order: 10
+        air_date: 2024-10-04
+      - number: 2
+        order: 20
+        air_date: 2024-10-11
+      - number: OVA1
+        order: 25  # Placed between ep 2 and 3
+        title: Special Episode
+        is_special: true
+      - number: 3
+        order: 30
+        air_date: 2024-10-18

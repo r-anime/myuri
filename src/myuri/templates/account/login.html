@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% load socialaccount %}
+
+{% block title %}Login - Anime Discussion Manager{% endblock %}
+
+{% block content %}
+<h2>Login</h2>
+
+<p>Sign in with your Reddit account to manage anime discussions.</p>
+
+<a href="{% provider_login_url 'reddit' %}" class="btn">
+    Login with Reddit
+</a>
+
+<hr style="margin: 30px 0;">
+
+<h3>Or use username/password</h3>
+
+<form method="post" action="{% url 'account_login' %}">
+    {% csrf_token %}
+    {% for field in form %}
+        <p>{{ field.label_tag }}{{ field }}{{ field.errors }}</p>
+    {% endfor %}
+    <button type="submit" class="btn">Login</button>
+</form>
+{% endblock %}

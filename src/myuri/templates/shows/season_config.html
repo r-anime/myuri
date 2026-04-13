@@ -1,0 +1,322 @@
+{% extends "base.html" %}
+
+{% block title %}Season Config - Anime Discussion Manager{% endblock %}
+
+{% block content %}
+<div class="season-config-page">
+    <h2>Season Config Manager</h2>
+    <p class="subtitle">Import anime shows from YAML season config files</p>
+
+    <!-- Import Section -->
+    <section class="config-section">
+        <h3>Import Season Config</h3>
+        <form method="post" class="import-form">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="import">
+
+            <div class="form-row">
+                <label for="config-file">Select Config File:</label>
+                <select name="config_file" id="config-file" class="form-select" required>
+                    <option value="">-- Select a file --</option>
+                    {% for file in config_files %}
+                    <option value="{{ file.filename }}">{{ file.filename }} ({{ file.display }})</option>
+                    {% empty %}
+                    <option value="" disabled>No config files found in season_configs/</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="form-actions">
+                <button type="submit" class="btn" {% if not config_files %}disabled{% endif %}>
+                    Import Season
+                </button>
+            </div>
+        </form>
+    </section>
+
+    <!-- Existing Seasons Section -->
+    <section class="config-section">
+        <h3>Existing Seasons</h3>
+        {% if existing_seasons %}
+        <table class="seasons-table">
+            <thead>
+                <tr>
+                    <th>Season</th>
+                    <th>Shows</th>
+                    <th>Active Shows</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for season in existing_seasons %}
+                <tr>
+                    <td>{{ season.get_season_display }} {{ season.year }}</td>
+                    <td>{{ season.show_count }}</td>
+                    <td>{{ season.active_show_count }}</td>
+                    <td>
+                        <form method="post" class="inline-form delete-form"
+                              data-season="{{ season.get_season_display }} {{ season.year }}"
+                              data-count="{{ season.show_count }}">
+                            {% csrf_token %}
+                            <input type="hidden" name="action" value="delete_season">
+                            <input type="hidden" name="year" value="{{ season.year }}">
+                            <input type="hidden" name="season" value="{{ season.season }}">
+                            <button type="submit" class="btn btn-danger btn-small">
+                                Delete Shows
+                            </button>
+                        </form>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <p class="empty-message">No seasons with shows yet.</p>
+        {% endif %}
+    </section>
+
+    <!-- Config Files Info -->
+    <section class="config-section">
+        <h3>Config Files Location</h3>
+        <p class="info-text">
+            Place YAML season config files in: <code>src/season_configs/</code>
+        </p>
+        <p class="info-text">
+            Expected filename format: <code>YYYY_N_season.yaml</code> (e.g., <code>2026_1_winter.yaml</code>)
+        </p>
+    </section>
+</div>
+
+<style>
+    .season-config-page {
+        max-width: 700px;
+    }
+
+    .season-config-page h2 {
+        margin: 0 0 5px 0;
+    }
+
+    .subtitle {
+        color: var(--text-muted);
+        margin: 0 0 25px 0;
+    }
+
+    .config-section {
+        background: var(--bg-tertiary);
+        border-radius: 6px;
+        padding: 20px;
+        margin-bottom: 20px;
+    }
+
+    .config-section h3 {
+        margin: 0 0 15px 0;
+        font-size: 1.1em;
+        color: var(--text-primary);
+        border-bottom: 2px solid var(--accent-color);
+        padding-bottom: 8px;
+    }
+
+    .form-row {
+        margin-bottom: 15px;
+    }
+
+    .form-row label {
+        display: block;
+        margin-bottom: 5px;
+        font-weight: 500;
+        color: var(--text-secondary);
+    }
+
+    .form-select {
+        width: 100%;
+        padding: 10px 12px;
+        border: 1px solid var(--border-color);
+        border-radius: 4px;
+        font-size: 1em;
+        background: var(--input-bg);
+        color: var(--text-primary);
+    }
+
+    .form-select:focus {
+        outline: none;
+        border-color: var(--accent-color);
+    }
+
+    .form-actions {
+        margin-top: 15px;
+    }
+
+    .seasons-table {
+        width: 100%;
+        border-collapse: collapse;
+    }
+
+    .seasons-table th,
+    .seasons-table td {
+        padding: 10px 12px;
+        text-align: left;
+        border-bottom: 1px solid var(--border-color);
+    }
+
+    .seasons-table th {
+        background: var(--bg-secondary);
+        font-weight: 600;
+        color: var(--text-secondary);
+    }
+
+    .seasons-table tr:last-child td {
+        border-bottom: none;
+    }
+
+    .seasons-table tr:hover td {
+        background: var(--bg-secondary);
+    }
+
+    .inline-form {
+        display: inline;
+    }
+
+    .btn-danger {
+        background: #dc3545;
+    }
+
+    .btn-danger:hover {
+        background: #c82333;
+    }
+
+    .btn-small {
+        padding: 6px 12px;
+        font-size: 0.85em;
+    }
+
+    .empty-message {
+        color: var(--text-muted);
+        font-style: italic;
+        margin: 0;
+    }
+
+    .info-text {
+        margin: 0 0 10px 0;
+        color: var(--text-secondary);
+        font-size: 0.95em;
+    }
+
+    .info-text:last-child {
+        margin-bottom: 0;
+    }
+
+    .info-text code {
+        background: var(--bg-secondary);
+        padding: 2px 6px;
+        border-radius: 3px;
+        font-family: monospace;
+        font-size: 0.9em;
+        color: var(--text-primary);
+    }
+
+    /* Confirm dialog */
+    .confirm-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0, 0, 0, 0.5);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 1000;
+    }
+
+    .confirm-dialog {
+        background: var(--bg-secondary);
+        color: var(--text-primary);
+        padding: 20px;
+        border-radius: 8px;
+        max-width: 400px;
+        box-shadow: 0 4px 20px var(--shadow-color);
+    }
+
+    .confirm-dialog h4 {
+        margin: 0 0 10px 0;
+        color: #dc3545;
+    }
+
+    .confirm-dialog p {
+        margin: 0 0 15px 0;
+        color: var(--text-muted);
+    }
+
+    .confirm-dialog .dialog-buttons {
+        display: flex;
+        gap: 10px;
+        justify-content: flex-end;
+    }
+
+    .confirm-dialog .btn-cancel {
+        background: #666;
+    }
+
+    .confirm-dialog .btn-cancel:hover {
+        background: #555;
+    }
+</style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Delete confirmation
+    const deleteForms = document.querySelectorAll('.delete-form');
+
+    deleteForms.forEach(function(form) {
+        form.addEventListener('submit', function(e) {
+            e.preventDefault();
+
+            const season = this.dataset.season;
+            const count = this.dataset.count;
+
+            showDeleteConfirm(season, count, () => {
+                this.submit();
+            });
+        });
+    });
+
+    function showDeleteConfirm(season, count, onConfirm) {
+        const overlay = document.createElement('div');
+        overlay.className = 'confirm-overlay';
+        overlay.innerHTML = `
+            <div class="confirm-dialog">
+                <h4>Delete Season Shows?</h4>
+                <p>This will permanently delete <strong>${count} shows</strong> and all their episodes from <strong>${escapeHtml(season)}</strong>.</p>
+                <p>This action cannot be undone.</p>
+                <div class="dialog-buttons">
+                    <button class="btn btn-cancel" id="delete-cancel">Cancel</button>
+                    <button class="btn btn-danger" id="delete-ok">Delete ${count} Shows</button>
+                </div>
+            </div>
+        `;
+        document.body.appendChild(overlay);
+
+        document.getElementById('delete-cancel').addEventListener('click', function() {
+            overlay.remove();
+        });
+
+        document.getElementById('delete-ok').addEventListener('click', function() {
+            overlay.remove();
+            onConfirm();
+        });
+
+        overlay.addEventListener('click', function(e) {
+            if (e.target === overlay) {
+                overlay.remove();
+            }
+        });
+    }
+
+    function escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
+});
+</script>
+{% endblock %}

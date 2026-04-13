@@ -1,0 +1,132 @@
+{% extends "base.html" %}
+
+{% block title %}Wiki Export - Anime Discussion Manager{% endblock %}
+
+{% block content %}
+<style>
+    .export-controls {
+        display: flex;
+        align-items: center;
+        gap: 15px;
+        margin-bottom: 20px;
+        padding: 15px;
+        background: var(--bg-tertiary);
+        border-radius: 8px;
+    }
+
+    .export-controls label {
+        font-weight: 500;
+    }
+
+    .export-controls select {
+        padding: 8px 12px;
+        min-width: 200px;
+    }
+
+    .copy-btn {
+        margin-left: auto;
+        padding: 8px 16px;
+        background: #28a745;
+    }
+
+    .copy-btn:hover {
+        background: #218838;
+    }
+
+    .copy-btn.copied {
+        background: #6c757d;
+    }
+
+    .markdown-output {
+        width: 100%;
+        min-height: 400px;
+        font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+        font-size: 0.9em;
+        line-height: 1.5;
+        padding: 15px;
+        background: var(--bg-tertiary);
+        color: var(--text-primary);
+        border: 1px solid var(--border-color);
+        border-radius: 8px;
+        resize: vertical;
+        white-space: pre;
+        overflow-x: auto;
+    }
+
+    .no-season {
+        text-align: center;
+        padding: 40px 20px;
+        color: var(--text-muted);
+    }
+
+    .show-count {
+        color: var(--text-muted);
+        font-size: 0.9em;
+    }
+</style>
+
+<h2>Wiki Export</h2>
+<p>Generate Reddit wiki-formatted markdown for a season's shows and episode discussion links.</p>
+<p><a href="https://www.reddit.com/r/anime/wiki/discussion_archive">Used to populate the discussion archive wiki.</a></p>
+
+
+<div class="export-controls">
+    <label for="season-select">Season:</label>
+    <select id="season-select" onchange="selectSeason(this.value)">
+        <option value="">-- Select a season --</option>
+        {% for season in seasons %}
+        <option value="{{ season.id }}" {% if selected_season and selected_season.id == season.id %}selected{% endif %}>
+            {{ season }}
+        </option>
+        {% endfor %}
+    </select>
+    {% if selected_season %}
+    <span class="show-count">{{ selected_season.shows.count }} shows</span>
+    <button class="btn copy-btn" id="copy-btn" onclick="copyToClipboard()">Copy</button>
+    {% endif %}
+</div>
+
+{% if selected_season %}
+<textarea class="markdown-output" id="markdown-output" readonly>{{ wiki_markdown }}</textarea>
+{% else %}
+<div class="no-season">
+    Select a season to generate wiki markdown.
+</div>
+{% endif %}
+
+<script>
+    function selectSeason(seasonId) {
+        if (seasonId) {
+            window.location.href = '{% url "shows:wiki_export" %}?season_id=' + seasonId;
+        } else {
+            window.location.href = '{% url "shows:wiki_export" %}';
+        }
+    }
+
+    function copyToClipboard() {
+        const textarea = document.getElementById('markdown-output');
+        const copyBtn = document.getElementById('copy-btn');
+
+        navigator.clipboard.writeText(textarea.value).then(function() {
+            copyBtn.textContent = 'Copied!';
+            copyBtn.classList.add('copied');
+
+            setTimeout(function() {
+                copyBtn.textContent = 'Copy';
+                copyBtn.classList.remove('copied');
+            }, 2000);
+        }).catch(function(err) {
+            // Fallback for older browsers
+            textarea.select();
+            document.execCommand('copy');
+            copyBtn.textContent = 'Copied!';
+            copyBtn.classList.add('copied');
+
+            setTimeout(function() {
+                copyBtn.textContent = 'Copy';
+                copyBtn.classList.remove('copied');
+            }, 2000);
+        });
+    }
+</script>
+{% endblock %}

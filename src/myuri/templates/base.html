@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Anime Discussion Manager{% endblock %}</title>
+    {% load static %}
+    <link rel="apple-touch-icon" sizes="180x180" href="{% static 'favicon/apple-touch-icon.png' %}">
+    <link rel="icon" type="image/png" sizes="32x32" href="{% static 'favicon/favicon-32x32.png' %}">
+    <link rel="icon" type="image/png" sizes="16x16" href="{% static 'favicon/favicon-16x16.png' %}">
+    <link rel="icon" type="image/x-icon" href="{% static 'favicon/favicon.ico' %}">
+    <link rel="mask-icon" href="{% static 'favicon/safari-pinned-tab.svg' %}" color="#ff4500">
+    <meta name="msapplication-TileColor" content="#ff4500">
+    <meta name="msapplication-config" content="{% static 'favicon/browserconfig.xml' %}">
+    <meta name="theme-color" content="#ff4500">
+    <script>
+        // Apply dark mode immediately to prevent flash
+        if (localStorage.getItem('darkMode') === 'true') {
+            document.documentElement.classList.add('dark-mode');
+        }
+    </script>
+    <style>
+        /* CSS Variables for theming */
+        :root {
+            --bg-primary: #f5f5f5;
+            --bg-secondary: white;
+            --bg-tertiary: #f8f8f8;
+            --text-primary: #333;
+            --text-secondary: #555;
+            --text-muted: #666;
+            --border-color: #ddd;
+            --border-light: #eee;
+            --shadow-color: rgba(0,0,0,0.1);
+            --accent-color: #ff4500;
+            --accent-hover: #cc3700;
+            --success-bg: #d4edda;
+            --success-text: #155724;
+            --error-bg: #f8d7da;
+            --error-text: #721c24;
+            --input-bg: white;
+            --link-color: #0066cc;
+        }
+
+        :root.dark-mode {
+            --bg-primary: #1a1a1b;
+            --bg-secondary: #272729;
+            --bg-tertiary: #333335;
+            --text-primary: #d7dadc;
+            --text-secondary: #b0b3b8;
+            --text-muted: #818384;
+            --border-color: #474748;
+            --border-light: #3a3a3c;
+            --shadow-color: rgba(0,0,0,0.3);
+            --accent-color: #ff5722;
+            --accent-hover: #ff7043;
+            --success-bg: #1e3a2f;
+            --success-text: #81c784;
+            --error-bg: #3d2027;
+            --error-text: #ef9a9a;
+            --input-bg: #1a1a1b;
+            --link-color: #6db3f2;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: var(--bg-primary);
+            color: var(--text-primary);
+            overflow-y: scroll;
+            transition: background-color 0.2s, color 0.2s;
+        }
+        header {
+            background-color: var(--accent-color);
+            color: white;
+            padding: 15px 20px;
+            margin: -20px -20px 20px -20px;
+        }
+        header a {
+            color: white;
+            text-decoration: none;
+        }
+        nav {
+            margin-top: 10px;
+            display: flex;
+            align-items: center;
+        }
+        nav a {
+            margin-right: 15px;
+        }
+        .nav-right {
+            margin-left: auto;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+        .content {
+            background: var(--bg-secondary);
+            padding: 20px;
+            border-radius: 4px;
+            box-shadow: 0 1px 3px var(--shadow-color);
+            transition: background-color 0.2s;
+        }
+        .btn {
+            display: inline-block;
+            padding: 10px 20px;
+            background-color: var(--accent-color);
+            color: white;
+            text-decoration: none;
+            border-radius: 4px;
+            border: none;
+            cursor: pointer;
+        }
+        .btn:hover {
+            background-color: var(--accent-hover);
+        }
+        .messages {
+            list-style: none;
+            padding: 0;
+        }
+        .messages li {
+            padding: 10px;
+            margin-bottom: 10px;
+            border-radius: 4px;
+        }
+        .messages .success {
+            background-color: var(--success-bg);
+            color: var(--success-text);
+        }
+        .messages .error {
+            background-color: var(--error-bg);
+            color: var(--error-text);
+        }
+
+        /* Links */
+        .content a {
+            color: var(--link-color);
+        }
+        .content a:hover {
+            color: var(--accent-color);
+        }
+
+        /* Form elements */
+        input[type="text"],
+        input[type="email"],
+        input[type="password"],
+        input[type="url"],
+        input[type="number"],
+        textarea,
+        select {
+            background: var(--input-bg);
+            color: var(--text-primary);
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            padding: 8px 10px;
+        }
+        input:focus,
+        textarea:focus,
+        select:focus {
+            outline: none;
+            border-color: var(--accent-color);
+        }
+        input::placeholder,
+        textarea::placeholder {
+            color: var(--text-muted);
+        }
+
+        /* HR */
+        hr {
+            border: none;
+            border-top: 1px solid var(--border-color);
+        }
+
+        /* Headings */
+        h1, h2, h3, h4, h5, h6 {
+            color: var(--text-primary);
+        }
+
+        /* Dark mode toggle */
+        .dark-mode-toggle {
+            background: rgba(255,255,255,0.2);
+            border: none;
+            border-radius: 20px;
+            padding: 6px 12px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 0.85em;
+            color: white;
+            transition: background 0.2s;
+        }
+        .dark-mode-toggle:hover {
+            background: rgba(255,255,255,0.3);
+        }
+        .dark-mode-toggle .icon {
+            font-size: 1.1em;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h1><a href="/">Anime Discussion Manager</a></h1>
+        <nav>
+            {% if user.is_authenticated %}
+                <a href="{% url 'shows:home' %}">Home</a>
+                {% if user.is_staff %}
+                    <a href="{% url 'shows:shows_list' %}">Shows</a>
+                    <a href="{% url 'shows:custom_episode' %}">Custom Episode</a>
+                    <a href="{% url 'shows:season_config' %}">Season Config</a>
+                    <a href="{% url 'shows:scan' %}">Scan</a>
+                    <a href="{% url 'shows:wiki_export' %}">Wiki Export</a>
+                    <a href="/admin/">Admin</a>
+                {% endif %}
+                <a href="{% url 'account_logout' %}">Logout</a>
+                <div class="nav-right">
+                    <span class="username">{{ user.username }}</span>
+                    <button class="dark-mode-toggle" id="dark-mode-toggle" title="Toggle dark mode">
+                        <span class="icon" id="dark-mode-icon">&#9790;</span>
+                    </button>
+                </div>
+            {% else %}
+                <a href="{% url 'account_login' %}">Login</a>
+                <div class="nav-right">
+                    <button class="dark-mode-toggle" id="dark-mode-toggle" title="Toggle dark mode">
+                        <span class="icon" id="dark-mode-icon">&#9790;</span>
+                    </button>
+                </div>
+            {% endif %}
+        </nav>
+    </header>
+
+    {% if messages %}
+    <ul class="messages">
+        {% for message in messages %}
+        <li class="{{ message.tags }}">{{ message }}</li>
+        {% endfor %}
+    </ul>
+    {% endif %}
+
+    <div class="content">
+        {% block content %}{% endblock %}
+    </div>
+
+    <script>
+        (function() {
+            const toggle = document.getElementById('dark-mode-toggle');
+            const icon = document.getElementById('dark-mode-icon');
+            const html = document.documentElement;
+
+            function updateIcon() {
+                // Moon: ☾ (9790), Sun: ☀ (9728)
+                icon.innerHTML = html.classList.contains('dark-mode') ? '&#9728;' : '&#9790;';
+            }
+
+            updateIcon();
+
+            toggle.addEventListener('click', function() {
+                html.classList.toggle('dark-mode');
+                const isDark = html.classList.contains('dark-mode');
+                localStorage.setItem('darkMode', isDark);
+                updateIcon();
+            });
+        })();
+    </script>
+</body>
+</html>

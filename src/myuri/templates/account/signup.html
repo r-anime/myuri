@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% load socialaccount %}
+
+{% block title %}Sign Up - Anime Discussion Manager{% endblock %}
+
+{% block content %}
+<h2>Sign Up</h2>
+
+<p>Create an account or sign up with Reddit.</p>
+
+<a href="{% provider_login_url 'reddit' %}" class="btn">
+    Sign up with Reddit
+</a>
+
+<hr style="margin: 30px 0;">
+
+<h3>Or create a local account</h3>
+
+<form method="post" action="{% url 'account_signup' %}">
+    {% csrf_token %}
+    {{ form.as_p }}
+    <button type="submit" class="btn">Sign Up</button>
+</form>
+
+<p>
+    <a href="{% url 'account_login' %}">Already have an account? Login</a>
+</p>
+{% endblock %}

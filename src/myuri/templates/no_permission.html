@@ -1,0 +1,10 @@
+{% extends "base.html" %}
+
+{% block title %}Access Denied - Anime Discussion Manager{% endblock %}
+
+{% block content %}
+<h2>Access Denied</h2>
+<p>You are logged in as <strong>{{ username }}</strong>, but this account does not have permission to access Myuri.</p>
+<p>If you believe this is a mistake, contact an administrator.</p>
+<p><a href="{% url 'account_logout' %}" class="btn">Log out</a></p>
+{% endblock %}

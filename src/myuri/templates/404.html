@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+
+{% block title %}Page Not Found - Anime Discussion Manager{% endblock %}
+
+{% block content %}
+<div class="error-page">
+    <img src="/static/404.png" alt="404 Not Found" class="error-image">
+    <h2>Page Not Found</h2>
+    <p>The page you're looking for doesn't exist or has been moved.</p>
+    <a href="{% url 'shows:home' %}" class="btn">Go Home</a>
+</div>
+
+<style>
+    .error-page {
+        text-align: center;
+        padding: 40px 20px;
+    }
+
+    .error-image {
+        max-width: 300px;
+        width: 100%;
+        height: auto;
+        margin-bottom: 20px;
+    }
+
+    .error-page h2 {
+        margin: 0 0 10px 0;
+        color: #333;
+    }
+
+    .error-page p {
+        color: #666;
+        margin: 0 0 20px 0;
+    }
+</style>
+{% endblock %}

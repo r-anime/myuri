@@ -1,0 +1,110 @@
+# Reddit Credentials Configuration
+# Copy this file to config_reddit.ini and fill in your credentials
+# config_reddit.ini is gitignored and should never be committed
+
+[reddit_oauth]
+# Reddit OAuth app credentials for user login via the web UI
+# Create a "web app" at reddit.com/prefs/apps with redirect URI:
+#   http://127.0.0.1:8000/accounts/reddit/login/callback/
+client_id =
+client_secret =
+
+[reddit_episode_poster]
+# Main account for posting episode discussion threads
+username =
+password =
+oauth_key =
+oauth_secret =
+subreddit = anime
+useragent = MyuriBot 1.0 episode discussion bot
+
+[reddit_moderator]
+# Moderator account for removing mistakenly-posted threads
+# Leave empty to disable moderator functionality
+username =
+password =
+oauth_key =
+oauth_secret =
+subreddit = anime
+useragent = MyuriBot 1.0 moderator actions
+
+[discord]
+# Discord webhook URL for notifications (leave empty to disable)
+# Create at: Server Settings → Integrations → Webhooks → New Webhook
+webhook_url =
+
+[post]
+title = {show_name} - Episode {episode} discussion
+title_with_en = {show_name} • {show_name_en} - Episode {episode} discussion
+title_postfix_final = - FINAL
+flair_id =
+flair_text =
+
+body =
+	*{show_name}*, episode {episode}{episode_alt_number}{episode_name}
+
+	{aliases}
+
+	{poll}
+
+	{spoiler}
+
+	---
+
+	**Streams**
+
+	{streams}
+
+	**Show information**
+
+	{links}
+
+	---
+
+	**All discussions**
+
+	{discussions}
+
+	---
+
+	*This post was created by a bot. Message the mod team for feedback and comments.*
+	*The original source code can be found on [GitHub](https://github.com/r-anime/holo).*
+
+batch_thread_title = {show_name} - Episodes {start_episode}-{episode} Megathread
+batch_thread_title_with_en = {show_name} • {show_name_en} - Episodes {start_episode}-{episode} Megathread
+batch_thread_body =
+	{aliases}
+
+	---
+
+	**Streams**
+
+	{streams}
+
+	**Show information**
+
+	{links}
+
+	---
+
+	**All discussions**
+
+	{discussions}
+
+	---
+
+	*This post was created by a bot. Message the mod team for feedback and comments.*
+	*The original source code can be found on [GitHub](https://github.com/r-anime/holo).*
+
+format_spoiler = **Reminder:** Please do not discuss plot points not yet seen or skipped in the show. Failing to follow the rules may result in a ban.
+format_stream = * [{service_name}]({stream_link})
+format_link = * [{site_name}]({link})
+format_link_reddit = * **{link}**
+format_discussion_header = Episode|Link|Score
+format_discussion_align = :-:|:-:|:-:
+format_discussion = {episode}|[Link]({link})|[{score}]({poll_link})
+format_discussion_none = *No discussions yet!*
+format_aliases = Alternative names: *{aliases}*
+poll_title = {show} - Episode {episode}
+format_poll = # [Rate this episode here.]({poll_url})
+

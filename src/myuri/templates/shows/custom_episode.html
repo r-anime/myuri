@@ -1,0 +1,778 @@
+{% extends "base.html" %}
+
+{% block title %}Custom Episode - Anime Discussion Manager{% endblock %}
+
+{% block content %}
+<h2>Custom Episode Post</h2>
+<p class="page-description">Post a one-off episode discussion without setting up a full show.</p>
+
+<div class="custom-form">
+    <!-- Show Information -->
+    <section class="form-section">
+        <h3>Show Information</h3>
+        <div class="form-group">
+            <label for="show-name">Show Name (Japanese) <span class="required">*</span></label>
+            <input type="text" id="show-name" placeholder="e.g., Sousou no Frieren" required>
+        </div>
+        <div class="form-group">
+            <label for="show-name-en">Show Name (English)</label>
+            <input type="text" id="show-name-en" placeholder="e.g., Frieren: Beyond Journey's End">
+        </div>
+        <div class="form-group">
+            <label for="aliases">Aliases (one per line)</label>
+            <textarea id="aliases" rows="3" placeholder="Frieren&#10;Sousou no Frieren"></textarea>
+        </div>
+        <div class="form-group checkbox-group">
+            <label>
+                <input type="checkbox" id="has-source">
+                Has Source Material
+            </label>
+            <span class="help-text">Check if the anime is adapted from manga, light novel, etc.</span>
+        </div>
+    </section>
+
+    <!-- Episode Information -->
+    <section class="form-section">
+        <h3>Episode Information</h3>
+        <div class="form-row">
+            <div class="form-group">
+                <label for="episode-number">Episode Number</label>
+                <input type="text" id="episode-number" placeholder="e.g., 1, OVA1, 0.5">
+            </div>
+            <div class="form-group checkbox-group" style="padding-top: 28px;">
+                <label>
+                    <input type="checkbox" id="is-final">
+                    Final Episode
+                    <span class="help-text">Will append 'FINAL' to the end of the title.</span>
+                </label>
+            </div>
+        </div>
+        <div class="form-group">
+            <label for="discussion-subject">Discussion Subject <span class="required">*</span></label>
+            <input type="text" id="discussion-subject" placeholder="e.g., Episode 1, Movie, OVA 2" required>
+            <span class="help-text">What appears before "discussion" in the title (auto-filled from episode number)</span>
+        </div>
+    </section>
+
+    <!-- Streaming Links -->
+    <section class="form-section">
+        <h3>Streaming Links</h3>
+        <div id="streams-list" class="link-fields">
+            <!-- Stream fields will be generated here -->
+        </div>
+    </section>
+
+    <!-- Info Links -->
+    <section class="form-section">
+        <h3>Info Links</h3>
+        <div id="info-links-list" class="link-fields">
+            <!-- Info link fields will be generated here -->
+        </div>
+    </section>
+
+    <!-- Preview -->
+    <section class="form-section preview-section" id="preview-section" style="display: none;">
+        <h3>Thread Preview</h3>
+        <div class="thread-preview">
+            <div class="preview-title" id="preview-title"></div>
+            <div class="preview-body" id="preview-body"></div>
+        </div>
+    </section>
+
+    <!-- Actions -->
+    <section class="form-section actions-section">
+        <div id="validation-error" class="validation-error" style="display: none;"></div>
+        <div class="action-buttons-row">
+            <button type="button" class="btn btn-secondary" id="prepare-btn">Prepare Thread</button>
+            <button type="button" class="btn" id="fire-custom-btn" disabled>Fire Custom Thread</button>
+        </div>
+        <div id="custom-result" class="custom-result" style="display: none;"></div>
+    </section>
+</div>
+
+<style>
+    .page-description {
+        color: var(--text-muted);
+        margin-bottom: 20px;
+    }
+
+    .custom-form {
+        max-width: 600px;
+    }
+
+    .form-section {
+        margin-bottom: 25px;
+        padding-bottom: 20px;
+        border-bottom: 1px solid var(--border-light);
+    }
+
+    .form-section:last-child {
+        border-bottom: none;
+    }
+
+    .form-section h3 {
+        margin: 0 0 15px 0;
+        font-size: 1.1em;
+        color: var(--text-primary);
+    }
+
+    .form-group {
+        margin-bottom: 15px;
+    }
+
+    .form-group label {
+        display: block;
+        margin-bottom: 5px;
+        font-size: 0.9em;
+        color: var(--text-secondary);
+    }
+
+    .form-group input[type="text"],
+    .form-group textarea,
+    .form-group select {
+        width: 100%;
+        padding: 8px 10px;
+        border: 1px solid var(--border-color);
+        border-radius: 4px;
+        font-size: 1em;
+        box-sizing: border-box;
+        background: var(--input-bg);
+        color: var(--text-primary);
+    }
+
+    .form-group input:focus,
+    .form-group textarea:focus,
+    .form-group select:focus {
+        outline: none;
+        border-color: var(--accent-color);
+    }
+
+    .form-row {
+        display: flex;
+        gap: 15px;
+    }
+
+    .form-row .form-group {
+        flex: 1;
+    }
+
+    .checkbox-group label {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        cursor: pointer;
+    }
+
+    .checkbox-group input[type="checkbox"] {
+        width: auto;
+    }
+
+    .help-text {
+        display: block;
+        font-size: 0.8em;
+        color: var(--text-muted);
+        margin-top: 4px;
+    }
+
+    .required {
+        color: #c00;
+    }
+
+    /* Link fields styles */
+    .link-fields {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 10px 20px;
+    }
+
+    .link-field {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+
+    .link-field label {
+        width: 120px;
+        flex-shrink: 0;
+        font-size: 0.9em;
+        color: var(--text-secondary);
+        text-align: right;
+    }
+
+    .link-field input {
+        flex: 1;
+        padding: 6px 10px;
+        border: 1px solid var(--border-color);
+        border-radius: 4px;
+        font-size: 0.9em;
+        background: var(--input-bg);
+        color: var(--text-primary);
+    }
+
+    .link-field input:focus {
+        outline: none;
+        border-color: var(--accent-color);
+    }
+
+    .link-field input::placeholder {
+        color: var(--text-muted);
+    }
+
+    @media (max-width: 600px) {
+        .link-fields {
+            grid-template-columns: 1fr;
+        }
+    }
+
+    /* Preview section */
+    .preview-section {
+        background: var(--bg-tertiary);
+        margin: 0 -20px;
+        padding: 20px;
+    }
+
+    .thread-preview {
+        background: var(--bg-secondary);
+        border: 1px solid var(--border-color);
+        border-radius: 4px;
+        overflow: hidden;
+    }
+
+    .preview-title {
+        background: var(--accent-color);
+        color: white;
+        padding: 12px 15px;
+        font-weight: 600;
+        font-size: 1.1em;
+    }
+
+    .preview-body {
+        padding: 15px;
+        font-size: 0.9em;
+        line-height: 1.6;
+        max-height: 400px;
+        overflow-y: auto;
+        color: var(--text-primary);
+    }
+
+    .preview-body h1, .preview-body h2, .preview-body h3 {
+        margin-top: 1em;
+        margin-bottom: 0.5em;
+        color: var(--text-primary);
+    }
+
+    .preview-body h1:first-child, .preview-body h2:first-child, .preview-body h3:first-child {
+        margin-top: 0;
+    }
+
+    .preview-body p {
+        margin: 0.5em 0;
+    }
+
+    .preview-body ul, .preview-body ol {
+        margin: 0.5em 0;
+        padding-left: 1.5em;
+    }
+
+    .preview-body table {
+        border-collapse: collapse;
+        margin: 0.5em 0;
+        font-size: 0.9em;
+    }
+
+    .preview-body th, .preview-body td {
+        border: 1px solid var(--border-color);
+        padding: 6px 10px;
+        text-align: left;
+    }
+
+    .preview-body th {
+        background: var(--bg-tertiary);
+    }
+
+    .preview-body a {
+        color: var(--link-color);
+    }
+
+    .preview-body hr {
+        border: none;
+        border-top: 1px solid var(--border-color);
+        margin: 1em 0;
+    }
+
+    /* Actions section */
+    .actions-section {
+        padding-top: 10px;
+    }
+
+    .action-buttons-row {
+        display: flex;
+        gap: 10px;
+    }
+
+    .validation-error {
+        background: var(--error-bg);
+        color: var(--error-text);
+        padding: 10px 12px;
+        border-radius: 4px;
+        margin-bottom: 12px;
+        font-size: 0.9em;
+    }
+
+    #prepare-btn, #fire-custom-btn {
+        font-size: 1em;
+        padding: 12px 24px;
+    }
+
+    .btn-secondary {
+        background: #666;
+    }
+
+    .btn-secondary:hover {
+        background: #555;
+    }
+
+    #fire-custom-btn:disabled {
+        background: var(--text-muted);
+        cursor: not-allowed;
+    }
+
+    /* Result display */
+    .custom-result {
+        margin-top: 15px;
+        padding: 12px;
+        border-radius: 4px;
+        font-size: 0.9em;
+    }
+
+    .custom-result.success {
+        background: var(--success-bg);
+        color: var(--success-text);
+    }
+
+    .custom-result.error {
+        background: var(--error-bg);
+        color: var(--error-text);
+    }
+
+    .custom-result a {
+        color: inherit;
+        font-weight: 600;
+    }
+
+    /* Confirm dialog */
+    .confirm-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0, 0, 0, 0.5);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 1000;
+    }
+
+    .confirm-dialog {
+        background: var(--bg-secondary);
+        color: var(--text-primary);
+        padding: 20px;
+        border-radius: 8px;
+        max-width: 450px;
+        box-shadow: 0 4px 20px var(--shadow-color);
+    }
+
+    .confirm-dialog h4 {
+        margin: 0 0 10px 0;
+    }
+
+    .confirm-dialog p {
+        margin: 0 0 15px 0;
+        color: var(--text-muted);
+    }
+
+    .confirm-dialog .preview {
+        background: var(--bg-tertiary);
+        padding: 10px;
+        border-radius: 4px;
+        margin-bottom: 15px;
+        font-size: 0.9em;
+    }
+
+    .confirm-dialog .preview strong {
+        display: block;
+        margin-bottom: 5px;
+    }
+
+    .confirm-dialog .dialog-buttons {
+        display: flex;
+        gap: 10px;
+        justify-content: flex-end;
+    }
+
+    .confirm-dialog .btn-cancel {
+        background: #666;
+    }
+
+    .confirm-dialog .btn-cancel:hover {
+        background: #555;
+    }
+
+    /* Loading state */
+    .btn.loading {
+        opacity: 0.7;
+        cursor: not-allowed;
+    }
+</style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Parse link types from server
+    const linkTypes = {{ link_types_json|safe }};
+
+    // Generate input fields for each link type
+    function generateLinkFields(container, category) {
+        linkTypes[category].forEach(lt => {
+            const field = document.createElement('div');
+            field.className = 'link-field';
+            field.innerHTML = `
+                <label for="${category}-${lt.slug}">${lt.name}</label>
+                <input type="url" id="${category}-${lt.slug}" data-name="${lt.name}" placeholder="https://...">
+            `;
+            container.appendChild(field);
+        });
+    }
+
+    // Generate stream fields
+    const streamsList = document.getElementById('streams-list');
+    generateLinkFields(streamsList, 'stream');
+
+    // Generate info link fields
+    const infoLinksList = document.getElementById('info-links-list');
+    generateLinkFields(infoLinksList, 'info');
+
+    // Auto-populate discussion subject from episode number
+    const episodeNumberInput = document.getElementById('episode-number');
+    const discussionSubjectInput = document.getElementById('discussion-subject');
+
+    episodeNumberInput.addEventListener('input', function() {
+        const epNum = this.value.trim();
+        if (epNum) {
+            discussionSubjectInput.value = 'Episode ' + epNum;
+        }
+    });
+
+    // Elements
+    const prepareBtn = document.getElementById('prepare-btn');
+    const fireBtn = document.getElementById('fire-custom-btn');
+    const validationError = document.getElementById('validation-error');
+    const previewSection = document.getElementById('preview-section');
+    const previewTitle = document.getElementById('preview-title');
+    const previewBody = document.getElementById('preview-body');
+    const resultDiv = document.getElementById('custom-result');
+
+    // Store prepared data for firing
+    let preparedData = null;
+
+    function showValidationError(message) {
+        validationError.textContent = message;
+        validationError.style.display = 'block';
+    }
+
+    function hideValidationError() {
+        validationError.style.display = 'none';
+    }
+
+    function collectFormData() {
+        const showName = document.getElementById('show-name').value.trim();
+        const showNameEn = document.getElementById('show-name-en').value.trim();
+        const aliasesText = document.getElementById('aliases').value;
+        const hasSource = document.getElementById('has-source').checked;
+        const discussionSubject = document.getElementById('discussion-subject').value.trim();
+        const isFinal = document.getElementById('is-final').checked;
+
+        // Parse aliases
+        const aliases = aliasesText
+            .split('\n')
+            .map(a => a.trim())
+            .filter(a => a.length > 0);
+
+        // Collect streams
+        const streams = [];
+        streamsList.querySelectorAll('.link-field input').forEach(input => {
+            const url = input.value.trim();
+            if (url) {
+                streams.push({ name: input.dataset.name, url });
+            }
+        });
+
+        // Collect info links
+        const infoLinks = [];
+        infoLinksList.querySelectorAll('.link-field input').forEach(input => {
+            const url = input.value.trim();
+            if (url) {
+                infoLinks.push({ name: input.dataset.name, url });
+            }
+        });
+
+        return {
+            show_name: showName,
+            show_name_en: showNameEn,
+            aliases: aliases,
+            has_source: hasSource,
+            discussion_subject: discussionSubject,
+            is_final: isFinal,
+            streams: streams,
+            info_links: infoLinks,
+        };
+    }
+
+    function validateFormData(data) {
+        if (!data.show_name) {
+            showValidationError('Show name is required');
+            document.getElementById('show-name').focus();
+            return false;
+        }
+
+        if (!data.discussion_subject) {
+            showValidationError('Discussion subject is required');
+            document.getElementById('discussion-subject').focus();
+            return false;
+        }
+
+        return true;
+    }
+
+    // Simple markdown to HTML converter for Reddit-style markdown
+    function renderMarkdown(text) {
+        let html = escapeHtml(text);
+
+        // Headers
+        html = html.replace(/^### (.+)$/gm, '<h3>$1</h3>');
+        html = html.replace(/^## (.+)$/gm, '<h2>$1</h2>');
+        html = html.replace(/^# (.+)$/gm, '<h1>$1</h1>');
+
+        // Bold and italic
+        html = html.replace(/\*\*\*(.+?)\*\*\*/g, '<strong><em>$1</em></strong>');
+        html = html.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+        html = html.replace(/\*(.+?)\*/g, '<em>$1</em>');
+
+        // Links
+        html = html.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank">$1</a>');
+
+        // Horizontal rules
+        html = html.replace(/^---$/gm, '<hr>');
+        html = html.replace(/^\*\*\*$/gm, '<hr>');
+
+        // Tables (simple Reddit-style)
+        const lines = html.split('\n');
+        let inTable = false;
+        let tableHtml = '';
+        const processedLines = [];
+
+        for (let i = 0; i < lines.length; i++) {
+            const line = lines[i];
+            const isTableRow = line.includes('|') && line.trim().startsWith('|') || line.includes('|');
+            const isAlignRow = /^[\s|:-]+$/.test(line);
+
+            if (isTableRow && !isAlignRow) {
+                if (!inTable) {
+                    inTable = true;
+                    tableHtml = '<table>';
+                }
+                const cells = line.split('|').filter(c => c.trim() !== '');
+                const isHeader = i + 1 < lines.length && /^[\s|:-]+$/.test(lines[i + 1]);
+                const tag = isHeader ? 'th' : 'td';
+                tableHtml += '<tr>' + cells.map(c => `<${tag}>${c.trim()}</${tag}>`).join('') + '</tr>';
+            } else if (isAlignRow && inTable) {
+                // Skip alignment row
+                continue;
+            } else {
+                if (inTable) {
+                    tableHtml += '</table>';
+                    processedLines.push(tableHtml);
+                    tableHtml = '';
+                    inTable = false;
+                }
+                processedLines.push(line);
+            }
+        }
+        if (inTable) {
+            tableHtml += '</table>';
+            processedLines.push(tableHtml);
+        }
+
+        html = processedLines.join('\n');
+
+        // Lists (simple)
+        html = html.replace(/^\* (.+)$/gm, '<li>$1</li>');
+        html = html.replace(/(<li>.*<\/li>\n?)+/g, '<ul>$&</ul>');
+
+        // Paragraphs (double newlines)
+        html = html.replace(/\n\n+/g, '</p><p>');
+        html = '<p>' + html + '</p>';
+
+        // Clean up empty paragraphs and fix nesting
+        html = html.replace(/<p>\s*<\/p>/g, '');
+        html = html.replace(/<p>\s*(<h[123]>)/g, '$1');
+        html = html.replace(/(<\/h[123]>)\s*<\/p>/g, '$1');
+        html = html.replace(/<p>\s*(<ul>)/g, '$1');
+        html = html.replace(/(<\/ul>)\s*<\/p>/g, '$1');
+        html = html.replace(/<p>\s*(<table>)/g, '$1');
+        html = html.replace(/(<\/table>)\s*<\/p>/g, '$1');
+        html = html.replace(/<p>\s*(<hr>)/g, '$1');
+        html = html.replace(/(<hr>)\s*<\/p>/g, '$1');
+
+        // Single newlines to breaks within paragraphs
+        html = html.replace(/([^>])\n([^<])/g, '$1<br>$2');
+
+        return html;
+    }
+
+    // Invalidate preview when form changes
+    function invalidatePreview() {
+        preparedData = null;
+        fireBtn.disabled = true;
+        previewSection.style.display = 'none';
+        resultDiv.style.display = 'none';
+    }
+
+    // Add change listeners to all form fields
+    document.querySelectorAll('#show-name, #show-name-en, #aliases, #has-source, #episode-number, #discussion-subject, #is-final').forEach(el => {
+        el.addEventListener('input', invalidatePreview);
+        el.addEventListener('change', invalidatePreview);
+    });
+
+    // Also invalidate when link fields change
+    const observer = new MutationObserver(function() {
+        document.querySelectorAll('#streams-list input, #info-links-list input').forEach(input => {
+            if (!input.dataset.observed) {
+                input.dataset.observed = 'true';
+                input.addEventListener('input', invalidatePreview);
+            }
+        });
+    });
+    observer.observe(streamsList, { childList: true, subtree: true });
+    observer.observe(infoLinksList, { childList: true, subtree: true });
+
+    // Prepare Thread button
+    prepareBtn.addEventListener('click', function() {
+        hideValidationError();
+        resultDiv.style.display = 'none';
+
+        const data = collectFormData();
+        if (!validateFormData(data)) {
+            return;
+        }
+
+        // Show loading state
+        prepareBtn.classList.add('loading');
+        prepareBtn.disabled = true;
+        prepareBtn.textContent = 'Preparing...';
+
+        fetch('{% url "shows:prepare_custom_episode" %}', {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': getCsrfToken(),
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(data),
+        })
+        .then(response => response.json())
+        .then(result => {
+            if (result.success) {
+                // Show preview
+                previewTitle.textContent = result.title;
+                previewBody.innerHTML = renderMarkdown(result.body);
+                previewSection.style.display = 'block';
+
+                // Enable fire button and store data
+                preparedData = data;
+                fireBtn.disabled = false;
+
+                // Scroll to preview
+                previewSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            } else {
+                showValidationError('Error: ' + result.error);
+            }
+        })
+        .catch(error => {
+            showValidationError('Error: ' + error.message);
+        })
+        .finally(() => {
+            prepareBtn.classList.remove('loading');
+            prepareBtn.disabled = false;
+            prepareBtn.textContent = 'Prepare Thread';
+        });
+    });
+
+    // Fire Custom Thread button
+    fireBtn.addEventListener('click', function() {
+        if (!preparedData) {
+            showValidationError('Please prepare the thread first');
+            return;
+        }
+
+        hideValidationError();
+
+        // Show loading state
+        fireBtn.classList.add('loading');
+        fireBtn.disabled = true;
+        fireBtn.textContent = 'Posting...';
+
+        fetch('{% url "shows:fire_custom_episode" %}', {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': getCsrfToken(),
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(preparedData),
+        })
+        .then(response => response.json())
+        .then(data => {
+            resultDiv.style.display = 'block';
+            if (data.success) {
+                resultDiv.className = 'custom-result success';
+                resultDiv.innerHTML = `${escapeHtml(data.discussion_subject)} discussion posted! <a href="${data.discussion_url}" target="_blank">View on Reddit</a>`;
+                // Disable fire button after successful post
+                fireBtn.disabled = true;
+                preparedData = null;
+            } else {
+                resultDiv.className = 'custom-result error';
+                resultDiv.textContent = 'Error: ' + data.error;
+                fireBtn.disabled = false;
+            }
+        })
+        .catch(error => {
+            resultDiv.style.display = 'block';
+            resultDiv.className = 'custom-result error';
+            resultDiv.textContent = 'Error: ' + error.message;
+            fireBtn.disabled = false;
+        })
+        .finally(() => {
+            fireBtn.classList.remove('loading');
+            fireBtn.textContent = 'Fire Custom Thread';
+        });
+    });
+
+    function getCsrfToken() {
+        const name = 'csrftoken';
+        const cookies = document.cookie.split(';');
+        for (let cookie of cookies) {
+            cookie = cookie.trim();
+            if (cookie.startsWith(name + '=')) {
+                return cookie.substring(name.length + 1);
+            }
+        }
+        return '';
+    }
+
+    function escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
+});
+</script>
+{% endblock %}
