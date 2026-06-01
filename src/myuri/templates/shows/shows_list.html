@@ -18,7 +18,7 @@
                 data-title-en="{{ show.title_en|lower }}"
                 data-aliases="{{ show.aliases|lower }}"
                 data-season-id="{{ season.id }}">
-                <a href="{% url 'shows:show_detail' show.id %}">{{ show.title }}</a>
+                <a href="{% url 'shows:show_detail' show.id %}"><span class="status-dot {{ show.status_color }}"></span>{{ show.title }}</a>
             </li>
             {% endfor %}
             {% endfor %}
@@ -151,6 +151,20 @@
         outline: none;
         border-color: var(--accent-color);
     }
+
+    .status-dot {
+        display: inline-block;
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        margin-right: 6px;
+        vertical-align: middle;
+        flex-shrink: 0;
+    }
+    .status-dot.green  { background-color: #4caf50; }
+    .status-dot.orange { background-color: #ff9800; }
+    .status-dot.red    { background-color: #f44336; }
+    .status-dot.grey   { background-color: #9e9e9e; }
 
     .shows-nav {
         list-style: none;

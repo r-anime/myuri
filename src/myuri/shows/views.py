@@ -5,7 +5,7 @@ import os
 from collections import defaultdict
 
 from django.contrib import messages
-from django.db.models import Count, Q
+from django.db.models import Count, Max, Q
 from django.http import JsonResponse
 from django.shortcuts import render, get_object_or_404, redirect
 from django.utils import timezone
@@ -76,8 +76,28 @@ def shows_list(request, show_id=None):
         episodes = selected_show.episodes.all().order_by("order")
         last_active_episode = selected_show.episodes.filter(scheduled_for_removal=False).order_by("-order").first()
 
+    latest_date_map = {
+        row['show_id']: row['latest_air']
+        for row in Episode.objects
+            .filter(show__in=enabled_shows, discussion_url__gt='', air_date__isnull=False)
+            .values('show_id')
+            .annotate(latest_air=Max('air_date'))
+    }
+
+    now = timezone.now()
     season_map = defaultdict(list)
     for show in enabled_shows:
+        latest = latest_date_map.get(show.id)
+        if latest is None:
+            show.status_color = 'grey'
+        else:
+            days_ago = (now - latest).days
+            if days_ago < 7:
+                show.status_color = 'green'
+            elif days_ago < 14:
+                show.status_color = 'orange'
+            else:
+                show.status_color = 'red'
         season_map[show.season].append(show)
 
     seasons_with_shows = sorted(
@@ -637,7 +657,7 @@ def scan_individual_show(request, show_id):
 
     try:
         scanner = NyaaSpecificScanner()
-        result = scanner.scan_show(show)
+        result = scanner.scan_show(show, max_age_days=7)
 
         return JsonResponse({
             "success": True,
