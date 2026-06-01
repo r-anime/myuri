@@ -15,6 +15,16 @@ debug = false
 client_id =
 client_secret =
 
+[data]
+# Options: database.sqlite or postgres
+database = database.sqlite
+# Only required if postgres
+database_name = myuri
+database_user = myuri
+database_password = yourpassword
+database_host = localhost
+database_port = 5432
+
 [reddit_episode_poster]
 # Main account for posting episode discussion threads
 username =
