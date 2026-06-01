@@ -1,0 +1,9 @@
+.venv/
+venv/
+**/__pycache__/
+**/*.pyc
+**/*.pyo
+config.ini
+src/myuri/db.sqlite3
+.git/
+.github/
