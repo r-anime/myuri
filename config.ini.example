@@ -2,6 +2,12 @@
 # Copy this file to config_reddit.ini and fill in your credentials
 # config_reddit.ini is gitignored and should never be committed
 
+[django]
+# Generate with: py -c "import secrets; print(secrets.token_urlsafe(50))"
+secret_key =
+# Set to false in production
+debug = false
+
 [reddit_oauth]
 # Reddit OAuth app credentials for user login via the web UI
 # Create a "web app" at reddit.com/prefs/apps with redirect URI:

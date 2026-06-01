@@ -32,10 +32,10 @@ def _reddit_oauth(key, fallback=''):
 # See https://docs.djangoproject.com/en/6.0/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-_ic0)xyu0+zu&8#f8dy6ld$h5cpxvnyurga!$=-z)w0gkpt7hw'
+SECRET_KEY = _ini.get('django', 'secret_key')
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = _ini.getboolean('django', 'debug', fallback=False)
 
 ALLOWED_HOSTS = []
 
