@@ -96,7 +96,7 @@ class SchedulerService:
                     show_id=found.show_id,
                     episode_number=str(found.episode_number),
                     source=found.source,
-                    torrent_title=found.torrent_title,
+                    source_title=found.source_title,
                     link=found.link,
                     found_at=_make_aware(found.found_at),
                     status="found"
@@ -224,7 +224,7 @@ class SchedulerService:
                     show_id=found.show_id,
                     episode_number=str(found.episode_number),
                     source=found.source,
-                    torrent_title=found.torrent_title,
+                    source_title=found.source_title,
                     link=found.link,
                     found_at=_make_aware(found.found_at),
                     status="found"

@@ -254,7 +254,7 @@ class ScanEpisode(models.Model):
     )
     episode_number = models.CharField(max_length=20)
     source = models.CharField(max_length=50, default="Nyaa")
-    torrent_title = models.CharField(max_length=500, blank=True)
+    source_title = models.CharField(max_length=500, blank=True)
     link = models.URLField(blank=True)
     found_at = models.DateTimeField()
     status = models.CharField(

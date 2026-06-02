@@ -702,7 +702,7 @@ def store_scan_results(request):
                     show_title=ep["show_title"],
                     episode_number=ep["episode_number"],
                     source=ep["source"],
-                    torrent_title=ep["torrent_title"],
+                    source_title=ep["source_title"],
                     found_at=datetime.fromisoformat(ep["found_at"]),
                     link=ep["link"],
                 )

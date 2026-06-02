@@ -71,7 +71,7 @@ class NyaaSpecificScanner(NyaaScanner):
                 show_title=show.title,
                 episode_number=episode_num,
                 source="Nyaa",
-                torrent_title=title,
+                source_title=title,
                 found_at=self._parse_torrent_date(torrent),
                 link=torrent.get("id", torrent.get("link", "")),
             ))

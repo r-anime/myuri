@@ -565,7 +565,7 @@
                     <td>{{ ep.found_at|date:"M d, H:i" }}</td>
                     <td>
                         <a href="{{ ep.link }}" target="_blank" rel="noopener">View</a>
-                        <span class="torrent-title" title="{{ ep.torrent_title }}">{{ ep.torrent_title }}</span>
+                        <span class="source-title" title="{{ ep.source_title }}">{{ ep.source_title }}</span>
                     </td>
                 </tr>
                 {% endfor %}
@@ -1006,7 +1006,7 @@
                 <td>${formatDate(new Date(ep.found_at))}</td>
                 <td>
                     <a href="${escapeHtml(ep.link)}" target="_blank" rel="noopener">View</a>
-                    <span class="torrent-title" title="${escapeHtml(ep.torrent_title)}">${escapeHtml(ep.torrent_title)}</span>
+                    <span class="source-title" title="${escapeHtml(ep.source_title)}">${escapeHtml(ep.source_title)}</span>
                 </td>
             </tr>
         `).join('');

@@ -87,7 +87,7 @@ class ScanEpisodeInline(admin.TabularInline):
     model = ScanEpisode
     extra = 0
     readonly_fields = [
-        "show", "episode_number", "source", "torrent_title",
+        "show", "episode_number", "source", "source_title",
         "link", "found_at", "status", "status_reason", "discussion_url"
     ]
     can_delete = False
@@ -126,9 +126,9 @@ class ScanEpisodeAdmin(admin.ModelAdmin):
         "source", "found_at"
     ]
     list_filter = ["status", "source", "scan"]
-    search_fields = ["show__title", "torrent_title"]
+    search_fields = ["show__title", "source_title"]
     readonly_fields = [
-        "scan", "show", "episode_number", "source", "torrent_title",
+        "scan", "show", "episode_number", "source", "source_title",
         "link", "found_at", "status", "status_reason", "discussion_url"
     ]
     ordering = ["-scan__scan_time"]

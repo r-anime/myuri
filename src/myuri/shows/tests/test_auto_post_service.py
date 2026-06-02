@@ -21,7 +21,7 @@ def _found(show, episode_number):
         show_title=show.title,
         episode_number=episode_number,
         source="Nyaa",
-        torrent_title=f"[Sub] {show.title} - {episode_number:02d} [1080p].mkv",
+        source_title=f"[Sub] {show.title} - {episode_number:02d} [1080p].mkv",
         found_at=datetime.now(),
         link=f"https://nyaa.si/view/{episode_number}",
     )

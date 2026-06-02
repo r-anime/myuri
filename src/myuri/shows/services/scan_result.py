@@ -10,7 +10,7 @@ class FoundEpisode:
     show_title: str
     episode_number: int
     source: str  # e.g., "Nyaa"
-    torrent_title: str
+    source_title: str
     found_at: datetime
     link: str
 
@@ -33,7 +33,7 @@ class ScanResult:
                     "show_title": ep.show_title,
                     "episode_number": ep.episode_number,
                     "source": ep.source,
-                    "torrent_title": ep.torrent_title,
+                    "source_title": ep.source_title,
                     "found_at": ep.found_at.isoformat(),
                     "link": ep.link,
                 }
@@ -54,7 +54,7 @@ class ScanResult:
                     show_title=ep["show_title"],
                     episode_number=ep["episode_number"],
                     source=ep["source"],
-                    torrent_title=ep["torrent_title"],
+                    source_title=ep["source_title"],
                     found_at=datetime.fromisoformat(ep["found_at"]),
                     link=ep["link"],
                 )
