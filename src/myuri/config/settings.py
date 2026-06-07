@@ -37,7 +37,7 @@ SECRET_KEY = _ini.get('django', 'secret_key')
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = _ini.getboolean('django', 'debug', fallback=False)
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = [h.strip() for h in _ini.get('django', 'allowed_hosts', fallback='').split(',') if h.strip()]
 
 
 # Application definition

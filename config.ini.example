@@ -7,6 +7,8 @@
 secret_key =
 # Set to false in production
 debug = false
+# Comma-separated list of hostnames Django will serve (e.g. localhost, 127.0.0.1, mysite.com)
+allowed_hosts = localhost, 127.0.0.1
 
 [reddit_oauth]
 # Reddit OAuth app credentials for user login via the web UI
