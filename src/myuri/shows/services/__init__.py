@@ -10,6 +10,9 @@ def __getattr__(name):
     if name == "NyaaScanner":
         from .nyaa_scanner import NyaaScanner
         return NyaaScanner
+    if name == "CrunchyrollScanner":
+        from .crunchyroll_scanner import CrunchyrollScanner
+        return CrunchyrollScanner
     if name == "NyaaSpecificScanner":
         from .nyaa_specific import NyaaSpecificScanner
         return NyaaSpecificScanner
@@ -54,6 +57,7 @@ __all__ = [
     "RedditService",
     "NyaaScanner",
     "NyaaSpecificScanner",
+    "CrunchyrollScanner",
     "ScanResult",
     "AutoPostService",
     "EpisodeEligibility",

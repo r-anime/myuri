@@ -606,8 +606,9 @@ def scan_page(request):
 @admin_required
 @require_POST
 def trigger_scan(request):
-    """Trigger a scan for new episodes from Nyaa.si."""
-    from .services import NyaaScanner
+    """Trigger a scan for new episodes from Nyaa.si and Crunchyroll."""
+    from .services import NyaaScanner, CrunchyrollScanner
+    from .services.scan_result import ScanResult
 
     # Get enabled shows
     enabled_shows = Show.objects.filter(enabled=True)
@@ -619,8 +620,15 @@ def trigger_scan(request):
         }, status=400)
 
     try:
-        scanner = NyaaScanner()
-        result = scanner.scan_recent(enabled_shows)
+        nyaa_result = NyaaScanner().scan_recent(enabled_shows)
+        cr_result   = CrunchyrollScanner().scan_recent(enabled_shows)
+
+        result = ScanResult(
+            scan_time=nyaa_result.scan_time,
+            episodes_found=nyaa_result.episodes_found + cr_result.episodes_found,
+            shows_scanned=nyaa_result.shows_scanned,
+            errors=nyaa_result.errors + cr_result.errors,
+        )
 
         # Store results in session
         request.session["last_scan_result"] = result.to_dict()
