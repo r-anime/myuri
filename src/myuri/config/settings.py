@@ -38,6 +38,7 @@ SECRET_KEY = _ini.get('django', 'secret_key')
 DEBUG = _ini.getboolean('django', 'debug', fallback=False)
 
 ALLOWED_HOSTS = [h.strip() for h in _ini.get('django', 'allowed_hosts', fallback='').split(',') if h.strip()]
+CSRF_TRUSTED_ORIGINS = [o.strip() for o in _ini.get('django', 'csrf_trusted_origins', fallback='').split(',') if o.strip()]
 
 
 # Application definition
