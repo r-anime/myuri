@@ -24,4 +24,9 @@ urlpatterns = [
     path("scan/check-eligibility/", views.check_eligibility, name="check_eligibility"),
     path("scan/auto-post/", views.auto_post_episodes, name="auto_post_episodes"),
     path("episode/<int:episode_id>/remove/", views.mark_episode_for_removal, name="mark_episode_removal"),
+    path("shows/<int:show_id>/links/add/", views.add_show_link, name="add_show_link"),
+    path("shows/<int:show_id>/links/<int:link_id>/update/", views.update_show_link, name="update_show_link"),
+    path("shows/<int:show_id>/links/<int:link_id>/delete/", views.delete_show_link, name="delete_show_link"),
+    path("shows/<int:show_id>/update-season/", views.update_show_season, name="update_show_season"),
+    path("shows/<int:show_id>/update-has-source/", views.update_show_has_source, name="update_show_has_source"),
 ]

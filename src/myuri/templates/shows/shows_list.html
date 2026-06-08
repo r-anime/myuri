@@ -30,23 +30,16 @@
     <main class="show-content">
         {% if selected_show %}
         <div class="show-header">
-            <div class="show-title-row">
-                <h2>{{ selected_show.title }}</h2>
-                <a href="{% url 'admin:shows_show_change' selected_show.id %}" class="manage-btn">Manage</a>
-            </div>
+            <h2>{{ selected_show.title }}</h2>
             {% if selected_show.title_en %}
             <p class="title-en">{{ selected_show.title_en }}</p>
             {% endif %}
             <div class="show-details">
-                <span class="season">{{ selected_show.season }}</span>
                 {% if selected_show.episode_count %}
                 <span class="episode-count">{{ selected_show.episode_count }} Episodes</span>
                 {% endif %}
                 {% if selected_show.franchise %}
                 <span class="franchise">{{ selected_show.franchise.name }}</span>
-                {% endif %}
-                {% if selected_show.has_source %}
-                <span class="badge">Has Source</span>
                 {% endif %}
             </div>
         </div>
@@ -73,10 +66,60 @@
                 </ul>
             </div>
 
+            <!-- Show Links Column -->
+            <div class="links-column">
+                <h3>Show Info</h3>
+                <div class="show-info-list"
+                     data-show-id="{{ selected_show.id }}"
+                     data-seasons="{{ seasons_json }}">
+                    <div class="show-info-row">
+                        <div class="show-info-header">
+                            <span class="show-info-label">Season</span>
+                            <button class="info-edit-btn" id="edit-season-btn"
+                                    data-season-id="{{ selected_show.season.id }}">&#9998;</button>
+                        </div>
+                        <span class="show-info-value season-value" id="show-season-display">{{ selected_show.season }}</span>
+                    </div>
+                    <div class="show-info-row">
+                        <div class="show-info-header">
+                            <span class="show-info-label">Has Source</span>
+                            <button class="info-edit-btn" id="edit-has-source-btn"
+                                    data-value="{{ selected_show.has_source|yesno:'true,false' }}">&#9998;</button>
+                        </div>
+                        <span class="show-info-value has-source-value {% if selected_show.has_source %}has-source-yes{% endif %}" id="show-has-source-display">
+                            {{ selected_show.has_source|yesno:"Yes,No" }}
+                        </span>
+                    </div>
+                </div>
+                <h3>Show Links</h3>
+                <ul class="links-list" id="links-list">
+                    {% for link in show_links %}
+                    <li class="link-row" data-link-id="{{ link.id }}" data-link-type-id="{{ link.link_type.id }}">
+                        <div class="link-row-header">
+                            <span class="link-type-name">{{ link.link_type.name }}</span>
+                            <div class="link-actions">
+                                <button class="link-edit-btn" data-link-id="{{ link.id }}" data-url="{{ link.url }}" data-link-type-name="{{ link.link_type.name }}">&#9998;</button>
+                                <button class="link-delete-btn" data-link-id="{{ link.id }}" data-link-type-name="{{ link.link_type.name }}">&#10005;</button>
+                            </div>
+                        </div>
+                        <a href="{{ link.url }}" target="_blank" class="link-url" title="{{ link.url }}">{{ link.url|truncatechars:28 }}</a>
+                    </li>
+                    {% empty %}
+                    <li class="empty" id="links-empty">No links</li>
+                    {% endfor %}
+                </ul>
+                <button class="btn action-btn" id="add-link-btn"
+                        data-show-id="{{ selected_show.id }}"
+                        data-link-types="{{ link_types_json }}">
+                    + Add Link
+                </button>
+            </div>
+
             <!-- Actions Column -->
             <div class="actions-column">
                 <h3>Actions</h3>
                 <div class="action-buttons">
+                    <a href="{% url 'admin:shows_show_change' selected_show.id %}" class="btn action-btn manage-btn">Admin Management</a>
                     <button class="btn action-btn" id="fire-next-episode-btn"
                             data-show-id="{{ selected_show.id }}"
                             data-show-title="{{ selected_show.title }}"
@@ -241,24 +284,12 @@
         border-bottom: 2px solid var(--accent-color);
     }
 
-    .show-title-row {
-        display: flex;
-        align-items: center;
-        gap: 12px;
-    }
-
     .show-header h2 {
         margin: 0 0 5px 0;
     }
 
     .manage-btn {
-        font-size: 0.75em;
-        padding: 4px 10px;
         background: #6c757d;
-        color: white;
-        text-decoration: none;
-        border-radius: 4px;
-        margin-bottom: 5px;
     }
 
     .manage-btn:hover {
@@ -425,6 +456,7 @@
         text-align: center;
         font-size: 0.9em;
         padding: 12px 15px;
+        box-sizing: border-box;
     }
 
     .action-btn.secondary {
@@ -487,6 +519,11 @@
         border-radius: 8px;
         max-width: 400px;
         box-shadow: 0 4px 20px var(--shadow-color);
+    }
+
+    .confirm-dialog--wide {
+        max-width: 560px;
+        width: 90vw;
     }
 
     .confirm-dialog h4 {
@@ -552,6 +589,162 @@
     }
 
     .dialog-form input:focus {
+        outline: none;
+        border-color: var(--accent-color);
+    }
+
+    /* Widen page for the extra column */
+    body { max-width: 1200px; }
+
+    /* Show Links Column */
+    .links-column {
+        width: 220px;
+        flex-shrink: 0;
+    }
+
+    .show-info-list {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        margin-bottom: 16px;
+    }
+
+    .show-info-row {
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+    }
+
+    .show-info-header {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+    }
+
+    .show-info-label {
+        flex: 1;
+        font-size: 0.7em;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+        color: var(--text-muted);
+    }
+
+    .show-info-value {
+        font-size: 0.85em;
+        font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+        color: var(--text-primary);
+    }
+
+    .season-value {
+        color: var(--accent-color);
+    }
+
+    .has-source-yes {
+        color: #4caf50;
+    }
+
+    .info-edit-btn {
+        background: transparent;
+        border: 1px solid var(--border-color);
+        border-radius: 3px;
+        cursor: pointer;
+        font-size: 0.75em;
+        color: var(--text-muted);
+        padding: 1px 5px;
+        line-height: 1.4;
+        flex-shrink: 0;
+    }
+
+    .info-edit-btn:hover {
+        border-color: var(--accent-color);
+        color: var(--accent-color);
+    }
+
+    .links-column h3 {
+        margin: 0 0 15px 0;
+        font-size: 1em;
+        color: var(--text-secondary);
+    }
+
+    .links-list {
+        list-style: none;
+        padding: 0;
+        margin: 0 0 12px 0;
+    }
+
+    .link-row {
+        display: flex;
+        flex-direction: column;
+        padding: 7px 0;
+        border-bottom: 1px solid var(--border-light);
+        gap: 3px;
+    }
+
+    .link-row-header {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+    }
+
+    .link-type-name {
+        flex: 1;
+        font-size: 0.78em;
+        font-weight: 600;
+        color: var(--text-secondary);
+    }
+
+    .link-url {
+        font-size: 0.78em;
+        color: var(--accent-color);
+        text-decoration: none;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        display: block;
+    }
+
+    .link-url:hover { text-decoration: underline; }
+
+    .link-actions {
+        display: flex;
+        gap: 5px;
+        flex-shrink: 0;
+    }
+
+    .link-edit-btn, .link-delete-btn {
+        background: transparent;
+        border: 1px solid var(--border-color);
+        border-radius: 3px;
+        cursor: pointer;
+        font-size: 0.75em;
+        color: var(--text-muted);
+        padding: 1px 5px;
+        line-height: 1.4;
+    }
+
+    .link-edit-btn:hover {
+        border-color: var(--accent-color);
+        color: var(--accent-color);
+    }
+
+    .link-delete-btn:hover {
+        border-color: #c00;
+        color: #c00;
+    }
+
+    .dialog-form select {
+        width: 100%;
+        padding: 8px 10px;
+        border: 1px solid var(--border-color);
+        border-radius: 4px;
+        font-size: 1em;
+        box-sizing: border-box;
+        background: var(--input-bg);
+        color: var(--text-primary);
+    }
+
+    .dialog-form select:focus {
         outline: none;
         border-color: var(--accent-color);
     }
@@ -1049,6 +1242,309 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         });
     }
+
+    // Show Info — Season edit
+    const editSeasonBtn = document.getElementById('edit-season-btn');
+    if (editSeasonBtn) {
+        editSeasonBtn.addEventListener('click', function() {
+            const infoList = document.querySelector('.show-info-list');
+            const showId = infoList.dataset.showId;
+            const allSeasons = JSON.parse(infoList.dataset.seasons || '[]');
+            const currentSeasonId = parseInt(this.dataset.seasonId, 10);
+
+            const options = allSeasons.map(s =>
+                `<option value="${s.id}"${s.id === currentSeasonId ? ' selected' : ''}>${escapeHtml(s.label)}</option>`
+            ).join('');
+
+            const overlay = document.createElement('div');
+            overlay.className = 'confirm-overlay';
+            overlay.innerHTML = `
+                <div class="confirm-dialog confirm-dialog--wide">
+                    <h4>Change Season</h4>
+                    <div class="dialog-form">
+                        <div class="form-group">
+                            <label for="season-select">Season</label>
+                            <select id="season-select">${options}</select>
+                        </div>
+                    </div>
+                    <div class="dialog-buttons">
+                        <button class="btn btn-cancel" id="season-cancel">Cancel</button>
+                        <button class="btn" id="season-ok">Save</button>
+                    </div>
+                </div>
+            `;
+            document.body.appendChild(overlay);
+
+            document.getElementById('season-cancel').addEventListener('click', () => overlay.remove());
+            overlay.addEventListener('click', e => { if (e.target === overlay) overlay.remove(); });
+
+            document.getElementById('season-ok').addEventListener('click', function() {
+                const seasonId = parseInt(document.getElementById('season-select').value, 10);
+                overlay.remove();
+                fetch(`/shows/${showId}/update-season/`, {
+                    method: 'POST',
+                    headers: { 'X-CSRFToken': getCsrfToken(), 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ season_id: seasonId }),
+                })
+                .then(r => r.json())
+                .then(data => {
+                    if (!data.success) { alert('Error: ' + data.error); return; }
+                    document.getElementById('show-season-display').textContent = data.season_str;
+                    editSeasonBtn.dataset.seasonId = seasonId;
+                })
+                .catch(err => alert('Error: ' + err.message));
+            });
+        });
+    }
+
+    // Show Info — Has Source toggle
+    const editHasSourceBtn = document.getElementById('edit-has-source-btn');
+    if (editHasSourceBtn) {
+        editHasSourceBtn.addEventListener('click', function() {
+            const infoList = document.querySelector('.show-info-list');
+            const showId = infoList.dataset.showId;
+            fetch(`/shows/${showId}/update-has-source/`, {
+                method: 'POST',
+                headers: { 'X-CSRFToken': getCsrfToken(), 'Content-Type': 'application/json' },
+            })
+            .then(r => r.json())
+            .then(data => {
+                if (!data.success) { alert('Error: ' + data.error); return; }
+                const display = document.getElementById('show-has-source-display');
+                display.textContent = data.has_source ? 'Yes' : 'No';
+                display.classList.toggle('has-source-yes', data.has_source);
+                editHasSourceBtn.dataset.value = data.has_source ? 'true' : 'false';
+            })
+            .catch(err => alert('Error: ' + err.message));
+        });
+    }
+
+    // Show Links management
+    const addLinkBtn = document.getElementById('add-link-btn');
+    if (addLinkBtn) {
+        addLinkBtn.addEventListener('click', function() {
+            const showId = this.dataset.showId;
+            const allLinkTypes = JSON.parse(this.dataset.linkTypes || '[]');
+
+            // Collect already-used link type IDs
+            const usedIds = new Set(
+                Array.from(document.querySelectorAll('#links-list .link-row'))
+                    .map(li => parseInt(li.dataset.linkTypeId, 10))
+                    .filter(id => !isNaN(id))
+            );
+
+            const available = allLinkTypes.filter(lt => !usedIds.has(lt.id));
+            if (available.length === 0) {
+                alert('All available link types are already added for this show.');
+                return;
+            }
+
+            showAddLinkDialog(showId, available);
+        });
+    }
+
+    function showAddLinkDialog(showId, available) {
+        const options = available.map(lt => `<option value="${lt.id}">${escapeHtml(lt.name)}</option>`).join('');
+        const overlay = document.createElement('div');
+        overlay.className = 'confirm-overlay';
+        overlay.innerHTML = `
+            <div class="confirm-dialog confirm-dialog--wide">
+                <h4>Add Show Link</h4>
+                <div class="dialog-form">
+                    <div class="form-group" style="margin-bottom:10px;">
+                        <label for="link-type-select">Link Type</label>
+                        <select id="link-type-select">${options}</select>
+                    </div>
+                    <div class="form-group">
+                        <label for="link-url-input">URL</label>
+                        <input type="url" id="link-url-input" placeholder="https://..." autocomplete="off">
+                    </div>
+                </div>
+                <div class="dialog-buttons">
+                    <button class="btn btn-cancel" id="add-link-cancel">Cancel</button>
+                    <button class="btn" id="add-link-ok">Add Link</button>
+                </div>
+            </div>
+        `;
+        document.body.appendChild(overlay);
+
+        const urlInput = document.getElementById('link-url-input');
+        urlInput.focus();
+
+        document.getElementById('add-link-cancel').addEventListener('click', () => overlay.remove());
+        overlay.addEventListener('click', e => { if (e.target === overlay) overlay.remove(); });
+
+        document.getElementById('add-link-ok').addEventListener('click', function() {
+            const linkTypeId = parseInt(document.getElementById('link-type-select').value, 10);
+            const url = urlInput.value.trim();
+            if (!url) { urlInput.focus(); return; }
+            overlay.remove();
+            submitAddLink(showId, linkTypeId, url);
+        });
+    }
+
+    function submitAddLink(showId, linkTypeId, url) {
+        fetch(`/shows/${showId}/links/add/`, {
+            method: 'POST',
+            headers: { 'X-CSRFToken': getCsrfToken(), 'Content-Type': 'application/json' },
+            body: JSON.stringify({ link_type_id: linkTypeId, url }),
+        })
+        .then(r => r.json())
+        .then(data => {
+            if (!data.success) { alert('Error: ' + data.error); return; }
+            const list = document.getElementById('links-list');
+            const emptyItem = document.getElementById('links-empty');
+            if (emptyItem) emptyItem.remove();
+            const li = document.createElement('li');
+            li.className = 'link-row';
+            li.dataset.linkId = data.link.id;
+            li.dataset.linkTypeId = data.link.link_type_id;
+            li.innerHTML = buildLinkRowInner(data.link.link_type_name, data.link.url, data.link.id);
+            list.appendChild(li);
+            bindLinkRowEvents(li);
+        })
+        .catch(err => alert('Error: ' + err.message));
+    }
+
+    function buildLinkRowInner(linkTypeName, url, linkId) {
+        const truncated = url.length > 28 ? url.slice(0, 27) + '…' : url;
+        return `
+            <div class="link-row-header">
+                <span class="link-type-name">${escapeHtml(linkTypeName)}</span>
+                <div class="link-actions">
+                    <button class="link-edit-btn" data-link-id="${linkId}" data-url="${escapeHtml(url)}" data-link-type-name="${escapeHtml(linkTypeName)}">&#9998;</button>
+                    <button class="link-delete-btn" data-link-id="${linkId}" data-link-type-name="${escapeHtml(linkTypeName)}">&#10005;</button>
+                </div>
+            </div>
+            <a href="${escapeHtml(url)}" target="_blank" class="link-url" title="${escapeHtml(url)}">${escapeHtml(truncated)}</a>
+        `;
+    }
+
+    function bindLinkRowEvents(li) {
+        const editBtn = li.querySelector('.link-edit-btn');
+        const deleteBtn = li.querySelector('.link-delete-btn');
+        if (editBtn) editBtn.addEventListener('click', handleEditLink);
+        if (deleteBtn) deleteBtn.addEventListener('click', handleDeleteLink);
+    }
+
+    function handleEditLink() {
+        const showId = document.getElementById('add-link-btn').dataset.showId;
+        const linkId = this.dataset.linkId;
+        const currentUrl = this.dataset.url;
+        const linkTypeName = this.dataset.linkTypeName;
+        showEditLinkDialog(showId, linkId, linkTypeName, currentUrl, this);
+    }
+
+    function showEditLinkDialog(showId, linkId, linkTypeName, currentUrl, editBtn) {
+        const overlay = document.createElement('div');
+        overlay.className = 'confirm-overlay';
+        overlay.innerHTML = `
+            <div class="confirm-dialog confirm-dialog--wide">
+                <h4>Edit Link — ${escapeHtml(linkTypeName)}</h4>
+                <div class="dialog-form">
+                    <div class="form-group">
+                        <label for="edit-url-input">URL</label>
+                        <input type="url" id="edit-url-input" value="${escapeHtml(currentUrl)}" autocomplete="off">
+                    </div>
+                </div>
+                <div class="dialog-buttons">
+                    <button class="btn btn-cancel" id="edit-link-cancel">Cancel</button>
+                    <button class="btn" id="edit-link-ok">Save</button>
+                </div>
+            </div>
+        `;
+        document.body.appendChild(overlay);
+
+        const urlInput = document.getElementById('edit-url-input');
+        urlInput.focus();
+        urlInput.select();
+
+        document.getElementById('edit-link-cancel').addEventListener('click', () => overlay.remove());
+        overlay.addEventListener('click', e => { if (e.target === overlay) overlay.remove(); });
+
+        document.getElementById('edit-link-ok').addEventListener('click', function() {
+            const newUrl = urlInput.value.trim();
+            if (!newUrl) { urlInput.focus(); return; }
+            overlay.remove();
+            submitUpdateLink(showId, linkId, newUrl, editBtn);
+        });
+    }
+
+    function submitUpdateLink(showId, linkId, newUrl, editBtn) {
+        fetch(`/shows/${showId}/links/${linkId}/update/`, {
+            method: 'POST',
+            headers: { 'X-CSRFToken': getCsrfToken(), 'Content-Type': 'application/json' },
+            body: JSON.stringify({ url: newUrl }),
+        })
+        .then(r => r.json())
+        .then(data => {
+            if (!data.success) { alert('Error: ' + data.error); return; }
+            const li = editBtn.closest('.link-row');
+            const anchor = li.querySelector('.link-url');
+            const truncated = newUrl.length > 28 ? newUrl.slice(0, 27) + '…' : newUrl;
+            anchor.href = newUrl;
+            anchor.title = newUrl;
+            anchor.textContent = truncated;
+            editBtn.dataset.url = newUrl;
+            // Update delete btn's row data too (nothing needed, delete uses link_id)
+        })
+        .catch(err => alert('Error: ' + err.message));
+    }
+
+    function handleDeleteLink() {
+        const showId = document.getElementById('add-link-btn').dataset.showId;
+        const linkId = this.dataset.linkId;
+        const linkTypeName = this.dataset.linkTypeName;
+        const li = this.closest('.link-row');
+        showDeleteLinkDialog(showId, linkId, linkTypeName, li);
+    }
+
+    function showDeleteLinkDialog(showId, linkId, linkTypeName, li) {
+        const overlay = document.createElement('div');
+        overlay.className = 'confirm-overlay';
+        overlay.innerHTML = `
+            <div class="confirm-dialog">
+                <h4>Remove Link?</h4>
+                <p>Remove the <strong>${escapeHtml(linkTypeName)}</strong> link from this show?</p>
+                <div class="dialog-buttons">
+                    <button class="btn btn-cancel" id="del-link-cancel">Cancel</button>
+                    <button class="btn" id="del-link-ok" style="background:#c00;">Remove</button>
+                </div>
+            </div>
+        `;
+        document.body.appendChild(overlay);
+
+        document.getElementById('del-link-cancel').addEventListener('click', () => overlay.remove());
+        overlay.addEventListener('click', e => { if (e.target === overlay) overlay.remove(); });
+
+        document.getElementById('del-link-ok').addEventListener('click', function() {
+            overlay.remove();
+            submitDeleteLink(showId, linkId, li);
+        });
+    }
+
+    function submitDeleteLink(showId, linkId, li) {
+        fetch(`/shows/${showId}/links/${linkId}/delete/`, {
+            method: 'POST',
+            headers: { 'X-CSRFToken': getCsrfToken(), 'Content-Type': 'application/json' },
+        })
+        .then(r => r.json())
+        .then(data => {
+            if (!data.success) { alert('Error: ' + data.error); return; }
+            li.remove();
+            if (document.querySelectorAll('#links-list .link-row').length === 0) {
+                const emptyLi = document.createElement('li');
+                emptyLi.className = 'empty';
+                emptyLi.id = 'links-empty';
+                emptyLi.textContent = 'No links';
+                document.getElementById('links-list').appendChild(emptyLi);
+            }
+        })
+        .catch(err => alert('Error: ' + err.message));
+    }
+
+    // Bind events for links rendered server-side
+    document.querySelectorAll('#links-list .link-row').forEach(bindLinkRowEvents);
 
     function removeEpisode(episodeId, btn) {
         btn.classList.add('loading');

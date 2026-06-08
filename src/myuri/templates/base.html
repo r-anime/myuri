@@ -74,8 +74,12 @@
         header {
             background-color: var(--accent-color);
             color: white;
-            padding: 15px 20px;
-            margin: -20px -20px 20px -20px;
+            padding: 15px max(20px, calc((100vw - 800px) / 2 + 20px));
+            margin-top: -20px;
+            margin-bottom: 20px;
+            margin-left: calc(-50vw + 50%);
+            margin-right: calc(-50vw + 50%);
+            box-sizing: border-box;
         }
         header a {
             color: white;

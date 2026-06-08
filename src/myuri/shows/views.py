@@ -22,7 +22,7 @@ def admin_required(view_func):
         return view_func(request, *args, **kwargs)
     return wrapper
 
-from .models import Show, Episode, Season, LinkType
+from .models import Show, Episode, Season, LinkType, ShowLink
 
 logger = logging.getLogger(__name__)
 
@@ -106,6 +106,18 @@ def shows_list(request, show_id=None):
         reverse=True,
     )
 
+    show_links = []
+    link_types_json = "[]"
+    if selected_show:
+        show_links = list(
+            selected_show.links.select_related("link_type")
+            .order_by("link_type__display_order", "link_type__name")
+        )
+        link_types_json = json.dumps([{"id": lt.id, "name": lt.name} for lt in LinkType.objects.all()])
+
+    all_seasons = list(Season.objects.all())
+    seasons_json = json.dumps([{"id": s.id, "label": str(s)} for s in all_seasons])
+
     return render(request, "shows/shows_list.html", {
         "shows": enabled_shows,
         "seasons_with_shows": seasons_with_shows,
@@ -113,6 +125,9 @@ def shows_list(request, show_id=None):
         "episodes": episodes,
         "last_active_episode": last_active_episode,
         "search_query": search_query,
+        "show_links": show_links,
+        "link_types_json": link_types_json,
+        "seasons_json": seasons_json,
     })
 
 
@@ -1112,3 +1127,92 @@ def mark_episode_for_removal(request, episode_id):
         "show_title": episode.show.title,
         "episode_number": episode.number,
     })
+
+
+@admin_required
+@require_POST
+def add_show_link(request, show_id):
+    """Add a ShowLink for the given show."""
+    show = get_object_or_404(Show, id=show_id)
+    try:
+        data = json.loads(request.body)
+    except json.JSONDecodeError:
+        return JsonResponse({"success": False, "error": "Invalid JSON"}, status=400)
+
+    link_type_id = data.get("link_type_id")
+    url = data.get("url", "").strip()
+    if not link_type_id or not url:
+        return JsonResponse({"success": False, "error": "link_type_id and url are required"}, status=400)
+
+    link_type = get_object_or_404(LinkType, id=link_type_id)
+    if ShowLink.objects.filter(show=show, link_type=link_type).exists():
+        return JsonResponse({"success": False, "error": f"{link_type.name} link already exists for this show"}, status=400)
+
+    link = ShowLink.objects.create(show=show, link_type=link_type, url=url)
+    return JsonResponse({
+        "success": True,
+        "link": {
+            "id": link.id,
+            "link_type_id": link_type.id,
+            "link_type_name": link_type.name,
+            "url": link.url,
+        },
+    })
+
+
+@admin_required
+@require_POST
+def update_show_link(request, show_id, link_id):
+    """Update the URL of a ShowLink."""
+    link = get_object_or_404(ShowLink, id=link_id, show_id=show_id)
+    try:
+        data = json.loads(request.body)
+    except json.JSONDecodeError:
+        return JsonResponse({"success": False, "error": "Invalid JSON"}, status=400)
+
+    url = data.get("url", "").strip()
+    if not url:
+        return JsonResponse({"success": False, "error": "url is required"}, status=400)
+
+    link.url = url
+    link.save()
+    return JsonResponse({"success": True})
+
+
+@admin_required
+@require_POST
+def delete_show_link(request, show_id, link_id):
+    """Delete a ShowLink."""
+    link = get_object_or_404(ShowLink, id=link_id, show_id=show_id)
+    link.delete()
+    return JsonResponse({"success": True})
+
+
+@admin_required
+@require_POST
+def update_show_season(request, show_id):
+    """Update the season for a show."""
+    show = get_object_or_404(Show, id=show_id)
+    try:
+        data = json.loads(request.body)
+    except json.JSONDecodeError:
+        return JsonResponse({"success": False, "error": "Invalid JSON"}, status=400)
+
+    season_id = data.get("season_id")
+    if not season_id:
+        return JsonResponse({"success": False, "error": "season_id is required"}, status=400)
+
+    season = get_object_or_404(Season, id=season_id)
+    show.season = season
+    show.save()
+    return JsonResponse({"success": True, "season_str": str(season)})
+
+
+@admin_required
+@require_POST
+def update_show_has_source(request, show_id):
+    """Toggle the has_source flag for a show."""
+    show = get_object_or_404(Show, id=show_id)
+    show.has_source = not show.has_source
+    show.save()
+    return JsonResponse({"success": True, "has_source": show.has_source})
