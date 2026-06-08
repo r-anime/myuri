@@ -2,6 +2,8 @@
 
 {% block title %}Shows - Anime Discussion Manager{% endblock %}
 
+{% block extra_head %}<style>body { max-width: 1200px; }</style>{% endblock %}
+
 {% block content %}
 <div class="shows-layout">
     <!-- Sidebar -->
@@ -592,9 +594,6 @@
         outline: none;
         border-color: var(--accent-color);
     }
-
-    /* Widen page for the extra column */
-    body { max-width: 1200px; }
 
     /* Show Links Column */
     .links-column {
