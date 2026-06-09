@@ -2,7 +2,7 @@
 
 {% block title %}Scan - Anime Discussion Manager{% endblock %}
 
-{% block content %}
+{% block extra_css %}
 <style>
     /* Widen the page for the results table */
     body {
@@ -420,7 +420,9 @@
         font-size: 0.9em;
     }
 </style>
+{% endblock %}
 
+{% block content %}
 <h2>Episode Scanner</h2>
 <p>Scan Nyaa.si for new episode releases matching your enabled shows.</p>
 

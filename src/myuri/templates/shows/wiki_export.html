@@ -2,7 +2,7 @@
 
 {% block title %}Wiki Export - Anime Discussion Manager{% endblock %}
 
-{% block content %}
+{% block extra_css %}
 <style>
     .export-controls {
         display: flex;
@@ -64,7 +64,9 @@
         font-size: 0.9em;
     }
 </style>
+{% endblock %}
 
+{% block content %}
 <h2>Wiki Export</h2>
 <p>Generate Reddit wiki-formatted markdown for a season's shows and episode discussion links.</p>
 <p><a href="https://www.reddit.com/r/anime/wiki/discussion_archive">Used to populate the discussion archive wiki.</a></p>

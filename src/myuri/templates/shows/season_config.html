@@ -2,91 +2,7 @@
 
 {% block title %}Season Config - Anime Discussion Manager{% endblock %}
 
-{% block content %}
-<div class="season-config-page">
-    <h2>Season Config Manager</h2>
-    <p class="subtitle">Import anime shows from YAML season config files</p>
-
-    <!-- Import Section -->
-    <section class="config-section">
-        <h3>Import Season Config</h3>
-        <form method="post" class="import-form">
-            {% csrf_token %}
-            <input type="hidden" name="action" value="import">
-
-            <div class="form-row">
-                <label for="config-file">Select Config File:</label>
-                <select name="config_file" id="config-file" class="form-select" required>
-                    <option value="">-- Select a file --</option>
-                    {% for file in config_files %}
-                    <option value="{{ file.filename }}">{{ file.filename }} ({{ file.display }})</option>
-                    {% empty %}
-                    <option value="" disabled>No config files found in season_configs/</option>
-                    {% endfor %}
-                </select>
-            </div>
-
-            <div class="form-actions">
-                <button type="submit" class="btn" {% if not config_files %}disabled{% endif %}>
-                    Import Season
-                </button>
-            </div>
-        </form>
-    </section>
-
-    <!-- Existing Seasons Section -->
-    <section class="config-section">
-        <h3>Existing Seasons</h3>
-        {% if existing_seasons %}
-        <table class="seasons-table">
-            <thead>
-                <tr>
-                    <th>Season</th>
-                    <th>Shows</th>
-                    <th>Active Shows</th>
-                    <th>Actions</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for season in existing_seasons %}
-                <tr>
-                    <td>{{ season.get_season_display }} {{ season.year }}</td>
-                    <td>{{ season.show_count }}</td>
-                    <td>{{ season.active_show_count }}</td>
-                    <td>
-                        <form method="post" class="inline-form delete-form"
-                              data-season="{{ season.get_season_display }} {{ season.year }}"
-                              data-count="{{ season.show_count }}">
-                            {% csrf_token %}
-                            <input type="hidden" name="action" value="delete_season">
-                            <input type="hidden" name="year" value="{{ season.year }}">
-                            <input type="hidden" name="season" value="{{ season.season }}">
-                            <button type="submit" class="btn btn-danger btn-small">
-                                Delete Shows
-                            </button>
-                        </form>
-                    </td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
-        {% else %}
-        <p class="empty-message">No seasons with shows yet.</p>
-        {% endif %}
-    </section>
-
-    <!-- Config Files Info -->
-    <section class="config-section">
-        <h3>Config Files Location</h3>
-        <p class="info-text">
-            Place YAML season config files in: <code>src/season_configs/</code>
-        </p>
-        <p class="info-text">
-            Expected filename format: <code>YYYY_N_season.yaml</code> (e.g., <code>2026_1_winter.yaml</code>)
-        </p>
-    </section>
-</div>
-
+{% block extra_css %}
 <style>
     .season-config-page {
         max-width: 700px;
@@ -261,6 +177,92 @@
         background: #555;
     }
 </style>
+{% endblock %}
+
+{% block content %}
+<div class="season-config-page">
+    <h2>Season Config Manager</h2>
+    <p class="subtitle">Import anime shows from YAML season config files</p>
+
+    <!-- Import Section -->
+    <section class="config-section">
+        <h3>Import Season Config</h3>
+        <form method="post" class="import-form">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="import">
+
+            <div class="form-row">
+                <label for="config-file">Select Config File:</label>
+                <select name="config_file" id="config-file" class="form-select" required>
+                    <option value="">-- Select a file --</option>
+                    {% for file in config_files %}
+                    <option value="{{ file.filename }}">{{ file.filename }} ({{ file.display }})</option>
+                    {% empty %}
+                    <option value="" disabled>No config files found in season_configs/</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="form-actions">
+                <button type="submit" class="btn" {% if not config_files %}disabled{% endif %}>
+                    Import Season
+                </button>
+            </div>
+        </form>
+    </section>
+
+    <!-- Existing Seasons Section -->
+    <section class="config-section">
+        <h3>Existing Seasons</h3>
+        {% if existing_seasons %}
+        <table class="seasons-table">
+            <thead>
+                <tr>
+                    <th>Season</th>
+                    <th>Shows</th>
+                    <th>Active Shows</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for season in existing_seasons %}
+                <tr>
+                    <td>{{ season.get_season_display }} {{ season.year }}</td>
+                    <td>{{ season.show_count }}</td>
+                    <td>{{ season.active_show_count }}</td>
+                    <td>
+                        <form method="post" class="inline-form delete-form"
+                              data-season="{{ season.get_season_display }} {{ season.year }}"
+                              data-count="{{ season.show_count }}">
+                            {% csrf_token %}
+                            <input type="hidden" name="action" value="delete_season">
+                            <input type="hidden" name="year" value="{{ season.year }}">
+                            <input type="hidden" name="season" value="{{ season.season }}">
+                            <button type="submit" class="btn btn-danger btn-small">
+                                Delete Shows
+                            </button>
+                        </form>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <p class="empty-message">No seasons with shows yet.</p>
+        {% endif %}
+    </section>
+
+    <!-- Config Files Info -->
+    <section class="config-section">
+        <h3>Config Files Location</h3>
+        <p class="info-text">
+            Place YAML season config files in: <code>src/season_configs/</code>
+        </p>
+        <p class="info-text">
+            Expected filename format: <code>YYYY_N_season.yaml</code> (e.g., <code>2026_1_winter.yaml</code>)
+        </p>
+    </section>
+</div>
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {

@@ -2,162 +2,7 @@
 
 {% block title %}Shows - Anime Discussion Manager{% endblock %}
 
-{% block content %}
-<div class="shows-layout">
-    <!-- Sidebar -->
-    <aside class="shows-sidebar">
-        <div class="search-box">
-            <input type="text" id="show-search" placeholder="Search shows..." class="search-input" autocomplete="off">
-        </div>
-        <ul class="shows-nav" id="shows-list">
-            {% for season, season_shows in seasons_with_shows %}
-            <li class="season-header" data-season="{{ season.id }}">{{ season }}</li>
-            {% for show in season_shows %}
-            <li class="show-item {% if selected_show.id == show.id %}active{% endif %}"
-                data-title="{{ show.title|lower }}"
-                data-title-en="{{ show.title_en|lower }}"
-                data-aliases="{{ show.aliases|lower }}"
-                data-season-id="{{ season.id }}">
-                <a href="{% url 'shows:show_detail' show.id %}"><span class="status-dot {{ show.status_color }}"></span>{{ show.title }}</a>
-            </li>
-            {% endfor %}
-            {% endfor %}
-        </ul>
-        <p class="no-results" id="no-results" style="display: none;">No shows found</p>
-    </aside>
-
-    <!-- Main Content -->
-    <main class="show-content">
-        {% if selected_show %}
-        <div class="show-header">
-            <h2>{{ selected_show.title }}</h2>
-            {% if selected_show.title_en %}
-            <p class="title-en">{{ selected_show.title_en }}</p>
-            {% endif %}
-            <div class="show-details">
-                {% if selected_show.episode_count %}
-                <span class="episode-count">{{ selected_show.episode_count }} Episodes</span>
-                {% endif %}
-                {% if selected_show.franchise %}
-                <span class="franchise">{{ selected_show.franchise.name }}</span>
-                {% endif %}
-            </div>
-        </div>
-
-        <div class="show-body">
-            <!-- Episodes Column -->
-            <div class="episodes-column">
-                <h3>Episodes</h3>
-                <ul class="episodes-list">
-                    {% for episode in episodes %}
-                    <li class="episode-row {% if episode.is_special %}special{% endif %}{% if episode.scheduled_for_removal %} removed{% endif %}">
-                        <span class="ep-number">{{ episode.number }}</span>
-                        <span class="ep-date">{{ episode.air_date|date:"M d, Y H:i"|default:"-" }}</span>
-                        {% if episode.scheduled_for_removal %}
-                        <span class="removed-badge">Removed</span>
-                        {% elif episode.discussion_url %}
-                        <a href="{{ episode.discussion_url }}" target="_blank" class="ep-link">View</a>
-                        <button class="remove-btn" data-episode-id="{{ episode.id }}" data-show-title="{{ episode.show.title }}" data-episode-number="{{ episode.number }}" title="Remove episode">X</button>
-                        {% endif %}
-                    </li>
-                    {% empty %}
-                    <li class="empty">No episodes</li>
-                    {% endfor %}
-                </ul>
-            </div>
-
-            <!-- Show Links Column -->
-            <div class="links-column">
-                <h3>Show Info</h3>
-                <div class="show-info-list"
-                     data-show-id="{{ selected_show.id }}"
-                     data-seasons="{{ seasons_json }}">
-                    <div class="show-info-row">
-                        <div class="show-info-header">
-                            <span class="show-info-label">Season</span>
-                            <button class="info-edit-btn" id="edit-season-btn"
-                                    data-season-id="{{ selected_show.season.id }}">&#9998;</button>
-                        </div>
-                        <span class="show-info-value season-value" id="show-season-display">{{ selected_show.season }}</span>
-                    </div>
-                    <div class="show-info-row">
-                        <div class="show-info-header">
-                            <span class="show-info-label">Has Source</span>
-                            <button class="info-edit-btn" id="edit-has-source-btn"
-                                    data-value="{{ selected_show.has_source|yesno:'true,false' }}">&#9998;</button>
-                        </div>
-                        <span class="show-info-value has-source-value {% if selected_show.has_source %}has-source-yes{% endif %}" id="show-has-source-display">
-                            {{ selected_show.has_source|yesno:"Yes,No" }}
-                        </span>
-                    </div>
-                </div>
-                <h3>Show Links</h3>
-                <ul class="links-list" id="links-list">
-                    {% for link in show_links %}
-                    <li class="link-row" data-link-id="{{ link.id }}" data-link-type-id="{{ link.link_type.id }}">
-                        <div class="link-row-header">
-                            <span class="link-type-name">{{ link.link_type.name }}</span>
-                            <div class="link-actions">
-                                <button class="link-edit-btn" data-link-id="{{ link.id }}" data-url="{{ link.url }}" data-link-type-name="{{ link.link_type.name }}">&#9998;</button>
-                                <button class="link-delete-btn" data-link-id="{{ link.id }}" data-link-type-name="{{ link.link_type.name }}">&#10005;</button>
-                            </div>
-                        </div>
-                        <a href="{{ link.url }}" target="_blank" class="link-url" title="{{ link.url }}">{{ link.url|truncatechars:28 }}</a>
-                    </li>
-                    {% empty %}
-                    <li class="empty" id="links-empty">No links</li>
-                    {% endfor %}
-                </ul>
-                <button class="btn action-btn" id="add-link-btn"
-                        data-show-id="{{ selected_show.id }}"
-                        data-link-types="{{ link_types_json }}">
-                    + Add Link
-                </button>
-            </div>
-
-            <!-- Actions Column -->
-            <div class="actions-column">
-                <h3>Actions</h3>
-                <div class="action-buttons">
-                    <a href="{% url 'admin:shows_show_change' selected_show.id %}" class="btn action-btn manage-btn">Admin Management</a>
-                    <button class="btn action-btn" id="fire-next-episode-btn"
-                            data-show-id="{{ selected_show.id }}"
-                            data-show-title="{{ selected_show.title }}"
-                            data-next-episode="{% if last_active_episode %}{{ last_active_episode.number|add:1 }}{% else %}1{% endif %}">
-                        Fire Next Episode
-                    </button>
-                    {% if selected_show.batch_release %}
-                    <button class="btn action-btn" id="fire-batch-btn"
-                            data-show-id="{{ selected_show.id }}"
-                            data-show-title="{{ selected_show.title }}"
-                            data-episode-count="{{ selected_show.episode_count|default:'' }}"
-                            data-existing-episodes="{% for ep in episodes %}{{ ep.number }}{% if not forloop.last %},{% endif %}{% endfor %}">
-                        Fire Episode Batch
-                    </button>
-                    {% endif %}
-<!--                    <button class="btn action-btn secondary" onclick="alert('Schedule Post Time - Coming soon')">-->
-<!--                        Schedule Post Time-->
-<!--                    </button>-->
-                    {% if episodes %}
-                    <button class="btn action-btn secondary" id="batch-update-btn"
-                            data-show-id="{{ selected_show.id }}"
-                            data-show-title="{{ selected_show.title }}"
-                            data-episode-count="{{ episodes|length }}">
-                        Batch Update Threads
-                    </button>
-                    {% endif %}
-                </div>
-                <div id="episode-result" class="episode-result" style="display: none;"></div>
-            </div>
-        </div>
-        {% else %}
-        <div class="no-show">
-            <p>Select a show from the sidebar</p>
-        </div>
-        {% endif %}
-    </main>
-</div>
-
+{% block extra_css %}
 <style>
     .shows-layout {
         display: flex;
@@ -749,6 +594,160 @@
         border-color: var(--accent-color);
     }
 </style>
+{% endblock %}
+
+{% block content %}
+<div class="shows-layout">
+    <!-- Sidebar -->
+    <aside class="shows-sidebar">
+        <div class="search-box">
+            <input type="text" id="show-search" placeholder="Search shows..." class="search-input" autocomplete="off">
+        </div>
+        <ul class="shows-nav" id="shows-list">
+            {% for season, season_shows in seasons_with_shows %}
+            <li class="season-header" data-season="{{ season.id }}">{{ season }}</li>
+            {% for show in season_shows %}
+            <li class="show-item {% if selected_show.id == show.id %}active{% endif %}"
+                data-title="{{ show.title|lower }}"
+                data-title-en="{{ show.title_en|lower }}"
+                data-aliases="{{ show.aliases|lower }}"
+                data-season-id="{{ season.id }}">
+                <a href="{% url 'shows:show_detail' show.id %}"><span class="status-dot {{ show.status_color }}"></span>{{ show.title }}</a>
+            </li>
+            {% endfor %}
+            {% endfor %}
+        </ul>
+        <p class="no-results" id="no-results" style="display: none;">No shows found</p>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="show-content">
+        {% if selected_show %}
+        <div class="show-header">
+            <h2>{{ selected_show.title }}</h2>
+            {% if selected_show.title_en %}
+            <p class="title-en">{{ selected_show.title_en }}</p>
+            {% endif %}
+            <div class="show-details">
+                {% if selected_show.episode_count %}
+                <span class="episode-count">{{ selected_show.episode_count }} Episodes</span>
+                {% endif %}
+                {% if selected_show.franchise %}
+                <span class="franchise">{{ selected_show.franchise.name }}</span>
+                {% endif %}
+            </div>
+        </div>
+
+        <div class="show-body">
+            <!-- Episodes Column -->
+            <div class="episodes-column">
+                <h3>Episodes</h3>
+                <ul class="episodes-list">
+                    {% for episode in episodes %}
+                    <li class="episode-row {% if episode.is_special %}special{% endif %}{% if episode.scheduled_for_removal %} removed{% endif %}">
+                        <span class="ep-number">{{ episode.number }}</span>
+                        <span class="ep-date">{{ episode.air_date|date:"M d, Y H:i"|default:"-" }}</span>
+                        {% if episode.scheduled_for_removal %}
+                        <span class="removed-badge">Removed</span>
+                        {% elif episode.discussion_url %}
+                        <a href="{{ episode.discussion_url }}" target="_blank" class="ep-link">View</a>
+                        <button class="remove-btn" data-episode-id="{{ episode.id }}" data-show-title="{{ episode.show.title }}" data-episode-number="{{ episode.number }}" title="Remove episode">X</button>
+                        {% endif %}
+                    </li>
+                    {% empty %}
+                    <li class="empty">No episodes</li>
+                    {% endfor %}
+                </ul>
+            </div>
+
+            <!-- Show Links Column -->
+            <div class="links-column">
+                <h3>Show Info</h3>
+                <div class="show-info-list"
+                     data-show-id="{{ selected_show.id }}"
+                     data-seasons="{{ seasons_json }}">
+                    <div class="show-info-row">
+                        <div class="show-info-header">
+                            <span class="show-info-label">Season</span>
+                            <button class="info-edit-btn" id="edit-season-btn"
+                                    data-season-id="{{ selected_show.season.id }}">&#9998;</button>
+                        </div>
+                        <span class="show-info-value season-value" id="show-season-display">{{ selected_show.season }}</span>
+                    </div>
+                    <div class="show-info-row">
+                        <div class="show-info-header">
+                            <span class="show-info-label">Has Source</span>
+                            <button class="info-edit-btn" id="edit-has-source-btn"
+                                    data-value="{{ selected_show.has_source|yesno:'true,false' }}">&#9998;</button>
+                        </div>
+                        <span class="show-info-value has-source-value {% if selected_show.has_source %}has-source-yes{% endif %}" id="show-has-source-display">
+                            {{ selected_show.has_source|yesno:"Yes,No" }}
+                        </span>
+                    </div>
+                </div>
+                <h3>Show Links</h3>
+                <ul class="links-list" id="links-list">
+                    {% for link in show_links %}
+                    <li class="link-row" data-link-id="{{ link.id }}" data-link-type-id="{{ link.link_type.id }}">
+                        <div class="link-row-header">
+                            <span class="link-type-name">{{ link.link_type.name }}</span>
+                            <div class="link-actions">
+                                <button class="link-edit-btn" data-link-id="{{ link.id }}" data-url="{{ link.url }}" data-link-type-name="{{ link.link_type.name }}">&#9998;</button>
+                                <button class="link-delete-btn" data-link-id="{{ link.id }}" data-link-type-name="{{ link.link_type.name }}">&#10005;</button>
+                            </div>
+                        </div>
+                        <a href="{{ link.url }}" target="_blank" class="link-url" title="{{ link.url }}">{{ link.url|truncatechars:28 }}</a>
+                    </li>
+                    {% empty %}
+                    <li class="empty" id="links-empty">No links</li>
+                    {% endfor %}
+                </ul>
+                <button class="btn action-btn" id="add-link-btn"
+                        data-show-id="{{ selected_show.id }}"
+                        data-link-types="{{ link_types_json }}">
+                    + Add Link
+                </button>
+            </div>
+
+            <!-- Actions Column -->
+            <div class="actions-column">
+                <h3>Actions</h3>
+                <div class="action-buttons">
+                    <a href="{% url 'admin:shows_show_change' selected_show.id %}" class="btn action-btn manage-btn">Admin Management</a>
+                    <button class="btn action-btn" id="fire-next-episode-btn"
+                            data-show-id="{{ selected_show.id }}"
+                            data-show-title="{{ selected_show.title }}"
+                            data-next-episode="{% if last_active_episode %}{{ last_active_episode.number|add:1 }}{% else %}1{% endif %}">
+                        Fire Next Episode
+                    </button>
+                    {% if selected_show.batch_release %}
+                    <button class="btn action-btn" id="fire-batch-btn"
+                            data-show-id="{{ selected_show.id }}"
+                            data-show-title="{{ selected_show.title }}"
+                            data-episode-count="{{ selected_show.episode_count|default:'' }}"
+                            data-existing-episodes="{% for ep in episodes %}{{ ep.number }}{% if not forloop.last %},{% endif %}{% endfor %}">
+                        Fire Episode Batch
+                    </button>
+                    {% endif %}
+                    {% if episodes %}
+                    <button class="btn action-btn secondary" id="batch-update-btn"
+                            data-show-id="{{ selected_show.id }}"
+                            data-show-title="{{ selected_show.title }}"
+                            data-episode-count="{{ episodes|length }}">
+                        Batch Update Threads
+                    </button>
+                    {% endif %}
+                </div>
+                <div id="episode-result" class="episode-result" style="display: none;"></div>
+            </div>
+        </div>
+        {% else %}
+        <div class="no-show">
+            <p>Select a show from the sidebar</p>
+        </div>
+        {% endif %}
+    </main>
+</div>
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {

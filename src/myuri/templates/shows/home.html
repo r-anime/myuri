@@ -2,63 +2,7 @@
 
 {% block title %}Home - Anime Discussion Manager{% endblock %}
 
-{% block content %}
-<section class="recent-episodes">
-    <h2>Recent Episodes</h2>
-    {% if recent_episodes %}
-    <ul class="episode-list">
-        {% for episode in recent_episodes %}
-        <li class="episode-item{% if episode.scheduled_for_removal %} removed{% endif %}">
-            <div class="episode-info">
-                <a href="{% url 'shows:show_detail' episode.show.id %}" class="show-link"><strong>{{ episode.show.title }}</strong></a> - Episode {{ episode.number }}
-                {% if episode.scheduled_for_removal %}
-                <span class="removed-badge">Removed</span>
-                {% endif %}
-            </div>
-            <div class="episode-meta">
-                {% if episode.discussion_url and not episode.scheduled_for_removal %}
-                <a href="{{ episode.discussion_url }}" target="_blank" rel="noopener" class="discussion-link">Reddit Link</a>
-                {% endif %}
-                <span class="air-date">{{ episode.air_date|date:"M d, Y H:i" }}</span>
-                {% if not episode.scheduled_for_removal %}
-                <button class="remove-btn" data-episode-id="{{ episode.id }}" data-show-title="{{ episode.show.title }}" data-episode-number="{{ episode.number }}" title="Remove episode">X</button>
-                {% endif %}
-            </div>
-        </li>
-        {% endfor %}
-    </ul>
-    {% else %}
-    <p class="empty-state">No episodes yet.</p>
-    {% endif %}
-</section>
-
-<section class="active-shows">
-    <h2>Currently Airing Shows</h2>
-    {% if shows %}
-    <div class="show-grid">
-        {% for show in shows %}
-        <a href="{% url 'shows:show_detail' show.id %}" class="show-card">
-            <h3>{{ show.title }}</h3>
-            {% if show.title_en %}
-            <p class="title-en">{{ show.title_en }}</p>
-            {% endif %}
-            <p class="season">{{ show.season }}{% if show.current_episode_count %} &middot; {{ show.current_episode_count }}/{{ show.episode_count|default:"?" }} Episodes{% endif %}</p>
-            {% if show.franchise %}
-            <p class="franchise">{{ show.franchise.name }}</p>
-            {% endif %}
-            <div class="show-meta">
-                {% if show.has_source %}
-                <span class="badge">Has Source</span>
-                {% endif %}
-            </div>
-        </a>
-        {% endfor %}
-    </div>
-    {% else %}
-    <p class="empty-state">No active shows.</p>
-    {% endif %}
-</section>
-
+{% block extra_css %}
 <style>
     .recent-episodes, .active-shows {
         margin-bottom: 30px;
@@ -301,6 +245,64 @@
         background: #a00;
     }
 </style>
+{% endblock %}
+
+{% block content %}
+<section class="recent-episodes">
+    <h2>Recent Episodes</h2>
+    {% if recent_episodes %}
+    <ul class="episode-list">
+        {% for episode in recent_episodes %}
+        <li class="episode-item{% if episode.scheduled_for_removal %} removed{% endif %}">
+            <div class="episode-info">
+                <a href="{% url 'shows:show_detail' episode.show.id %}" class="show-link"><strong>{{ episode.show.title }}</strong></a> - Episode {{ episode.number }}
+                {% if episode.scheduled_for_removal %}
+                <span class="removed-badge">Removed</span>
+                {% endif %}
+            </div>
+            <div class="episode-meta">
+                {% if episode.discussion_url and not episode.scheduled_for_removal %}
+                <a href="{{ episode.discussion_url }}" target="_blank" rel="noopener" class="discussion-link">Reddit Link</a>
+                {% endif %}
+                <span class="air-date">{{ episode.air_date|date:"M d, Y H:i" }}</span>
+                {% if not episode.scheduled_for_removal %}
+                <button class="remove-btn" data-episode-id="{{ episode.id }}" data-show-title="{{ episode.show.title }}" data-episode-number="{{ episode.number }}" title="Remove episode">X</button>
+                {% endif %}
+            </div>
+        </li>
+        {% endfor %}
+    </ul>
+    {% else %}
+    <p class="empty-state">No episodes yet.</p>
+    {% endif %}
+</section>
+
+<section class="active-shows">
+    <h2>Currently Airing Shows</h2>
+    {% if shows %}
+    <div class="show-grid">
+        {% for show in shows %}
+        <a href="{% url 'shows:show_detail' show.id %}" class="show-card">
+            <h3>{{ show.title }}</h3>
+            {% if show.title_en %}
+            <p class="title-en">{{ show.title_en }}</p>
+            {% endif %}
+            <p class="season">{{ show.season }}{% if show.current_episode_count %} &middot; {{ show.current_episode_count }}/{{ show.episode_count|default:"?" }} Episodes{% endif %}</p>
+            {% if show.franchise %}
+            <p class="franchise">{{ show.franchise.name }}</p>
+            {% endif %}
+            <div class="show-meta">
+                {% if show.has_source %}
+                <span class="badge">Has Source</span>
+                {% endif %}
+            </div>
+        </a>
+        {% endfor %}
+    </div>
+    {% else %}
+    <p class="empty-state">No active shows.</p>
+    {% endif %}
+</section>
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {

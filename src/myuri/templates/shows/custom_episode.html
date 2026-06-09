@@ -2,94 +2,7 @@
 
 {% block title %}Custom Episode - Anime Discussion Manager{% endblock %}
 
-{% block content %}
-<h2>Custom Episode Post</h2>
-<p class="page-description">Post a one-off episode discussion without setting up a full show.</p>
-
-<div class="custom-form">
-    <!-- Show Information -->
-    <section class="form-section">
-        <h3>Show Information</h3>
-        <div class="form-group">
-            <label for="show-name">Show Name (Japanese) <span class="required">*</span></label>
-            <input type="text" id="show-name" placeholder="e.g., Sousou no Frieren" required>
-        </div>
-        <div class="form-group">
-            <label for="show-name-en">Show Name (English)</label>
-            <input type="text" id="show-name-en" placeholder="e.g., Frieren: Beyond Journey's End">
-        </div>
-        <div class="form-group">
-            <label for="aliases">Aliases (one per line)</label>
-            <textarea id="aliases" rows="3" placeholder="Frieren&#10;Sousou no Frieren"></textarea>
-        </div>
-        <div class="form-group checkbox-group">
-            <label>
-                <input type="checkbox" id="has-source">
-                Has Source Material
-            </label>
-            <span class="help-text">Check if the anime is adapted from manga, light novel, etc.</span>
-        </div>
-    </section>
-
-    <!-- Episode Information -->
-    <section class="form-section">
-        <h3>Episode Information</h3>
-        <div class="form-row">
-            <div class="form-group">
-                <label for="episode-number">Episode Number</label>
-                <input type="text" id="episode-number" placeholder="e.g., 1, OVA1, 0.5">
-            </div>
-            <div class="form-group checkbox-group" style="padding-top: 28px;">
-                <label>
-                    <input type="checkbox" id="is-final">
-                    Final Episode
-                    <span class="help-text">Will append 'FINAL' to the end of the title.</span>
-                </label>
-            </div>
-        </div>
-        <div class="form-group">
-            <label for="discussion-subject">Discussion Subject <span class="required">*</span></label>
-            <input type="text" id="discussion-subject" placeholder="e.g., Episode 1, Movie, OVA 2" required>
-            <span class="help-text">What appears before "discussion" in the title (auto-filled from episode number)</span>
-        </div>
-    </section>
-
-    <!-- Streaming Links -->
-    <section class="form-section">
-        <h3>Streaming Links</h3>
-        <div id="streams-list" class="link-fields">
-            <!-- Stream fields will be generated here -->
-        </div>
-    </section>
-
-    <!-- Info Links -->
-    <section class="form-section">
-        <h3>Info Links</h3>
-        <div id="info-links-list" class="link-fields">
-            <!-- Info link fields will be generated here -->
-        </div>
-    </section>
-
-    <!-- Preview -->
-    <section class="form-section preview-section" id="preview-section" style="display: none;">
-        <h3>Thread Preview</h3>
-        <div class="thread-preview">
-            <div class="preview-title" id="preview-title"></div>
-            <div class="preview-body" id="preview-body"></div>
-        </div>
-    </section>
-
-    <!-- Actions -->
-    <section class="form-section actions-section">
-        <div id="validation-error" class="validation-error" style="display: none;"></div>
-        <div class="action-buttons-row">
-            <button type="button" class="btn btn-secondary" id="prepare-btn">Prepare Thread</button>
-            <button type="button" class="btn" id="fire-custom-btn" disabled>Fire Custom Thread</button>
-        </div>
-        <div id="custom-result" class="custom-result" style="display: none;"></div>
-    </section>
-</div>
-
+{% block extra_css %}
 <style>
     .page-description {
         color: var(--text-muted);
@@ -425,6 +338,95 @@
         cursor: not-allowed;
     }
 </style>
+{% endblock %}
+
+{% block content %}
+<h2>Custom Episode Post</h2>
+<p class="page-description">Post a one-off episode discussion without setting up a full show.</p>
+
+<div class="custom-form">
+    <!-- Show Information -->
+    <section class="form-section">
+        <h3>Show Information</h3>
+        <div class="form-group">
+            <label for="show-name">Show Name (Japanese) <span class="required">*</span></label>
+            <input type="text" id="show-name" placeholder="e.g., Sousou no Frieren" required>
+        </div>
+        <div class="form-group">
+            <label for="show-name-en">Show Name (English)</label>
+            <input type="text" id="show-name-en" placeholder="e.g., Frieren: Beyond Journey's End">
+        </div>
+        <div class="form-group">
+            <label for="aliases">Aliases (one per line)</label>
+            <textarea id="aliases" rows="3" placeholder="Frieren&#10;Sousou no Frieren"></textarea>
+        </div>
+        <div class="form-group checkbox-group">
+            <label>
+                <input type="checkbox" id="has-source">
+                Has Source Material
+            </label>
+            <span class="help-text">Check if the anime is adapted from manga, light novel, etc.</span>
+        </div>
+    </section>
+
+    <!-- Episode Information -->
+    <section class="form-section">
+        <h3>Episode Information</h3>
+        <div class="form-row">
+            <div class="form-group">
+                <label for="episode-number">Episode Number</label>
+                <input type="text" id="episode-number" placeholder="e.g., 1, OVA1, 0.5">
+            </div>
+            <div class="form-group checkbox-group" style="padding-top: 28px;">
+                <label>
+                    <input type="checkbox" id="is-final">
+                    Final Episode
+                    <span class="help-text">Will append 'FINAL' to the end of the title.</span>
+                </label>
+            </div>
+        </div>
+        <div class="form-group">
+            <label for="discussion-subject">Discussion Subject <span class="required">*</span></label>
+            <input type="text" id="discussion-subject" placeholder="e.g., Episode 1, Movie, OVA 2" required>
+            <span class="help-text">What appears before "discussion" in the title (auto-filled from episode number)</span>
+        </div>
+    </section>
+
+    <!-- Streaming Links -->
+    <section class="form-section">
+        <h3>Streaming Links</h3>
+        <div id="streams-list" class="link-fields">
+            <!-- Stream fields will be generated here -->
+        </div>
+    </section>
+
+    <!-- Info Links -->
+    <section class="form-section">
+        <h3>Info Links</h3>
+        <div id="info-links-list" class="link-fields">
+            <!-- Info link fields will be generated here -->
+        </div>
+    </section>
+
+    <!-- Preview -->
+    <section class="form-section preview-section" id="preview-section" style="display: none;">
+        <h3>Thread Preview</h3>
+        <div class="thread-preview">
+            <div class="preview-title" id="preview-title"></div>
+            <div class="preview-body" id="preview-body"></div>
+        </div>
+    </section>
+
+    <!-- Actions -->
+    <section class="form-section actions-section">
+        <div id="validation-error" class="validation-error" style="display: none;"></div>
+        <div class="action-buttons-row">
+            <button type="button" class="btn btn-secondary" id="prepare-btn">Prepare Thread</button>
+            <button type="button" class="btn" id="fire-custom-btn" disabled>Fire Custom Thread</button>
+        </div>
+        <div id="custom-result" class="custom-result" style="display: none;"></div>
+    </section>
+</div>
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
