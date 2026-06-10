@@ -107,17 +107,6 @@ class CrunchyrollScannerTests(TestCase):
         self.assertEqual(result.episodes_found, [])
         self.assertEqual(result.errors, [])
 
-    def test_scan_recent_filters_old_episodes(self):
-        """Episodes older than max_age_days are excluded."""
-        show = self._make_show()
-        self._add_cr_link(show)
-        scanner = CrunchyrollScanner()
-
-        old_episode = _make_episode(1, days_ago=3)
-        result = self._scan(scanner, [show], {show.id: [old_episode]})
-
-        self.assertEqual(result.episodes_found, [])
-
     def test_scan_recent_filters_clips(self):
         """Episodes marked is_clip=True are excluded."""
         show = self._make_show()

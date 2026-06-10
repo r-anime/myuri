@@ -1,7 +1,7 @@
 import base64
 import logging
 import re
-from datetime import datetime, timedelta
+from datetime import datetime
 from typing import Optional
 
 import requests
@@ -24,24 +24,18 @@ _SERIES_ID_RE = re.compile(r"crunchyroll\.com/series/([A-Z0-9]+)", re.I)
 class CrunchyrollScanner:
     """Scanner for finding anime episode releases on Crunchyroll."""
 
-    def scan_recent(self, shows, max_age_days: int = 2) -> ScanResult:
-        """
-        Scan Crunchyroll for recent episodes matching the given shows.
+    def scan_recent(self, shows) -> ScanResult:
+        """Scan Crunchyroll for episodes matching the given shows.
 
         Only shows with a ShowLink of link_type.slug == "crunchyroll" pointing to
         a new-style series URL (crunchyroll.com/series/<ID>) are scanned.
 
         Args:
             shows: QuerySet or list of Show model instances
-            max_age_days: Only include episodes aired within this many days
 
         Returns:
             ScanResult with found episodes
         """
-
-        logger.info("scan_recent")
-        print("scan_recent")
-
         result = ScanResult(scan_time=datetime.now(), shows_scanned=0)
 
         try:
@@ -69,11 +63,8 @@ class CrunchyrollScanner:
                 logger.exception(f"Failed to fetch Crunchyroll episodes for {show.title!r}")
                 result.errors.append(f"{show.title}: {e}")
                 continue
-            print("Scanning show:")
-            print(slug)
+
             for episode in episodes:
-                if not self._is_recent(episode, max_age_days):
-                    continue
                 if self._is_clip(episode):
                     continue
                 episode_num = self._extract_episode_number(episode)
@@ -134,13 +125,6 @@ class CrunchyrollScanner:
         episodes_r = requests.get(_CR_SEASON_URL.format(season_id=season_id), headers=headers)
         episodes_r.raise_for_status()
         return episodes_r.json().get("data", [])
-
-    def _is_recent(self, episode: dict, max_age_days: int) -> bool:
-        """Return True if the episode aired within max_age_days."""
-        episode_date = self._parse_episode_date(episode)
-        if episode_date is None:
-            return False
-        return datetime.utcnow() - episode_date < timedelta(days=max_age_days)
 
     def _parse_episode_date(self, episode: dict) -> Optional[datetime]:
         """Parse the episode air date into a naive UTC datetime."""

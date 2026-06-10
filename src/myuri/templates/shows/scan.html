@@ -347,6 +347,23 @@
     .show-progress-item.sp-error .show-name    { color: var(--error-text); }
     .show-progress-item.sp-error .progress-detail { color: var(--error-text); }
 
+    .show-progress-item.sp-new .progress-icon { color: #f59e0b; }
+    .show-progress-item.sp-new .progress-detail { color: #f59e0b; }
+
+    .cr-link {
+        font-size: 0.75em;
+        font-weight: 600;
+        color: #f47521;
+        text-decoration: none;
+        padding: 1px 5px;
+        border: 1px solid #f47521;
+        border-radius: 3px;
+        margin-left: 8px;
+        white-space: nowrap;
+        opacity: 0.8;
+    }
+    .cr-link:hover { opacity: 1; }
+
     .progress-detail {
         font-size: 0.85em;
         color: var(--text-muted);
@@ -471,7 +488,10 @@
         </span>
     </div>
     <button class="btn scan-btn" id="scan-btn" onclick="triggerScan()">
-        Scan Now
+        Nyaa Scan
+    </button>
+    <button class="btn scan-btn" id="stream-scan-btn" onclick="triggerStreamScan()" style="background: #0d9488;">
+        Stream Scan
     </button>
     <button class="btn scan-btn" id="scan-individual-btn" onclick="triggerScanIndividual()" style="background: #6f42c1;">
         Scan Individual All
@@ -496,6 +516,25 @@
             <span class="progress-icon" id="show-icon-{{ show.id }}">—</span>
             <span class="show-name">{{ show.title }}</span>
             <span class="progress-detail" id="show-detail-{{ show.id }}"></span>
+        </li>
+        {% endfor %}
+    </ul>
+</div>
+
+<div class="individual-progress hidden" id="stream-progress"
+     data-store-url="{% url 'shows:store_scan_results' %}">
+    <h3>Stream Scan Progress</h3>
+    <ul class="show-progress-list" id="stream-progress-list">
+        {% for entry in cr_shows %}
+        <li class="show-progress-item"
+            id="stream-show-progress-{{ entry.show.id }}"
+            data-show-id="{{ entry.show.id }}"
+            data-latest-posted="{{ entry.latest_posted|default:'' }}"
+            data-url="{% url 'shows:scan_stream_show' show_id=entry.show.id %}">
+            <span class="progress-icon" id="stream-show-icon-{{ entry.show.id }}">—</span>
+            <a class="show-name" href="{% url 'shows:show_detail' show_id=entry.show.id %}">{{ entry.show.title }}</a>
+            <span class="progress-detail" id="stream-show-detail-{{ entry.show.id }}"></span>
+            {% if entry.cr_url %}<a class="cr-link" href="{{ entry.cr_url }}" target="_blank" rel="noopener">CR</a>{% endif %}
         </li>
         {% endfor %}
     </ul>
@@ -636,12 +675,13 @@
 
     async function triggerScan() {
         const btn = document.getElementById('scan-btn');
+        const streamBtn = document.getElementById('stream-scan-btn');
         const postBtn = document.getElementById('post-btn');
         const errorSection = document.getElementById('error-section');
         const errorList = document.getElementById('error-list');
 
-        // Disable buttons and show loading state
         btn.disabled = true;
+        streamBtn.disabled = true;
         postBtn.disabled = true;
         btn.classList.add('loading');
         btn.textContent = 'Scanning...';
@@ -663,28 +703,21 @@
                 throw new Error(data.error || 'Scan failed');
             }
 
-            // Update last scan time
             const scanTime = new Date(data.scan_time);
             document.getElementById('last-scan-time').textContent = formatDate(scanTime);
 
-            // Update stats
             document.getElementById('stats-section').classList.remove('hidden');
             document.getElementById('episodes-count').textContent = data.episodes_found.length;
             document.getElementById('shows-count').textContent = data.shows_scanned;
 
-            // Store episodes for later use
             currentEpisodes = data.episodes_found;
-
-            // Update results table with pending status
             updateResultsTable(data.episodes_found);
 
-            // Show errors if any
             if (data.errors && data.errors.length > 0) {
                 errorList.innerHTML = data.errors.map(e => `<li>${escapeHtml(e)}</li>`).join('');
                 errorSection.classList.remove('hidden');
             }
 
-            // Check eligibility after scan
             if (data.episodes_found.length > 0) {
                 await checkEligibility();
             }
@@ -694,14 +727,177 @@
             errorSection.classList.remove('hidden');
         } finally {
             btn.disabled = false;
+            streamBtn.disabled = false;
             btn.classList.remove('loading');
-            btn.textContent = 'Scan Now';
+            btn.textContent = 'Nyaa Scan';
+        }
+    }
+
+    async function triggerStreamScan() {
+        const btn = document.getElementById('stream-scan-btn');
+        const scanBtn = document.getElementById('scan-btn');
+        const individualBtn = document.getElementById('scan-individual-btn');
+        const postBtn = document.getElementById('post-btn');
+        const progressSection = document.getElementById('stream-progress');
+        const errorSection = document.getElementById('error-section');
+        const errorList = document.getElementById('error-list');
+
+        const showItems = Array.from(
+            document.querySelectorAll('#stream-progress-list .show-progress-item')
+        );
+
+        if (showItems.length === 0) {
+            errorList.innerHTML = '<li>No shows with a Crunchyroll link configured.</li>';
+            errorSection.classList.remove('hidden');
+            return;
+        }
+
+        showItems.forEach(item => setStreamShowStatus(parseInt(item.dataset.showId), 'pending'));
+
+        btn.disabled = true;
+        scanBtn.disabled = true;
+        individualBtn.disabled = true;
+        postBtn.disabled = true;
+        btn.classList.add('loading');
+        btn.textContent = 'Scanning streams...';
+        errorSection.classList.add('hidden');
+        document.getElementById('post-results').classList.add('hidden');
+        progressSection.classList.remove('hidden');
+
+        const allEpisodes = [];
+        const allErrors = [];
+
+        for (const item of showItems) {
+            const showId = parseInt(item.dataset.showId);
+            const scanUrl = item.dataset.url;
+            const showName = item.querySelector('.show-name').textContent;
+            const latestPosted = item.dataset.latestPosted !== ''
+                ? parseInt(item.dataset.latestPosted)
+                : null;
+
+            setStreamShowStatus(showId, 'scanning');
+
+            try {
+                const response = await fetch(scanUrl, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': csrfToken,
+                    },
+                });
+
+                const data = await response.json();
+
+                if (!response.ok || !data.success) {
+                    throw new Error(data.error || 'Scan failed');
+                }
+
+                allEpisodes.push(...data.episodes_found);
+                allErrors.push(...data.errors);
+
+                const maxEp = data.episodes_found.length > 0
+                    ? Math.max(...data.episodes_found.map(ep => ep.episode_number))
+                    : null;
+
+                setStreamShowStatus(showId, 'done', maxEp, latestPosted);
+
+            } catch (error) {
+                allErrors.push(`${showName}: ${error.message}`);
+                setStreamShowStatus(showId, 'error', null, null, error.message);
+            }
+        }
+
+        try {
+            const storeResponse = await fetch('{% url "shows:store_scan_results" %}', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': csrfToken,
+                },
+                body: JSON.stringify({
+                    episodes_found: allEpisodes,
+                    shows_scanned: showItems.length,
+                    errors: allErrors,
+                }),
+            });
+
+            const storeData = await storeResponse.json();
+            if (storeData.success) {
+                document.getElementById('last-scan-time').textContent =
+                    formatDate(new Date(storeData.scan_time));
+            }
+        } catch (error) {
+            console.error('Failed to store stream scan results:', error);
+        }
+
+        document.getElementById('stats-section').classList.remove('hidden');
+        document.getElementById('episodes-count').textContent = allEpisodes.length;
+        document.getElementById('shows-count').textContent = showItems.length;
+
+        currentEpisodes = allEpisodes;
+        updateResultsTable(allEpisodes);
+
+        if (allErrors.length > 0) {
+            errorList.innerHTML = allErrors.map(e => `<li>${escapeHtml(e)}</li>`).join('');
+            errorSection.classList.remove('hidden');
+        }
+
+        if (allEpisodes.length > 0) {
+            await checkEligibility();
+        }
+
+        btn.disabled = false;
+        scanBtn.disabled = false;
+        individualBtn.disabled = false;
+        btn.classList.remove('loading');
+        btn.textContent = 'Stream Scan';
+    }
+
+    function setStreamShowStatus(showId, status, maxEp, latestPosted, errorMsg) {
+        const item   = document.getElementById(`stream-show-progress-${showId}`);
+        const icon   = document.getElementById(`stream-show-icon-${showId}`);
+        const detail = document.getElementById(`stream-show-detail-${showId}`);
+        if (!item) return;
+
+        item.className = 'show-progress-item';
+
+        switch (status) {
+            case 'pending':
+                icon.textContent = '—';
+                detail.textContent = '';
+                break;
+            case 'scanning':
+                item.classList.add('sp-scanning');
+                icon.innerHTML = '<span class="progress-spinner"></span>';
+                detail.textContent = 'Scanning…';
+                break;
+            case 'done':
+                if (maxEp === null) {
+                    item.classList.add('sp-done-empty');
+                    icon.textContent = '—';
+                    detail.textContent = 'None found';
+                } else if (latestPosted !== null && maxEp === latestPosted) {
+                    item.classList.add('sp-done');
+                    icon.textContent = '✓';
+                    detail.textContent = `Ep. ${maxEp} (up to date)`;
+                } else {
+                    item.classList.add('sp-new');
+                    icon.textContent = '★';
+                    detail.textContent = `Ep. ${maxEp}` + (latestPosted !== null ? ` (posted: ${latestPosted})` : ' (new)');
+                }
+                break;
+            case 'error':
+                item.classList.add('sp-error');
+                icon.textContent = '✗';
+                detail.textContent = errorMsg || 'Error';
+                break;
         }
     }
 
     async function triggerScanIndividual() {
         const btn = document.getElementById('scan-individual-btn');
         const scanBtn = document.getElementById('scan-btn');
+        const streamBtn = document.getElementById('stream-scan-btn');
         const postBtn = document.getElementById('post-btn');
         const progressSection = document.getElementById('individual-progress');
         const errorSection = document.getElementById('error-section');
@@ -722,6 +918,7 @@
 
         btn.disabled = true;
         scanBtn.disabled = true;
+        streamBtn.disabled = true;
         postBtn.disabled = true;
         btn.classList.add('loading');
         btn.textContent = 'Scanning...';
@@ -807,6 +1004,7 @@
 
         btn.disabled = false;
         scanBtn.disabled = false;
+        streamBtn.disabled = false;
         btn.classList.remove('loading');
         btn.textContent = 'Scan Individual All';
     }

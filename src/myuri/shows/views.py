@@ -608,6 +608,34 @@ def scan_page(request):
 
     enabled_shows = Show.objects.filter(enabled=True).order_by("title")
 
+    cr_shows_qs = Show.objects.filter(
+        enabled=True,
+        links__link_type__slug="crunchyroll",
+    ).order_by("title")
+
+    cr_shows = []
+    for show in cr_shows_qs:
+        latest_num = (
+            show.episodes
+            .filter(discussion_url__isnull=False)
+            .exclude(discussion_url="")
+            .order_by("-order")
+            .values_list("number", flat=True)
+            .first()
+        )
+        latest_int = None
+        if latest_num:
+            try:
+                latest_int = int(latest_num)
+            except (ValueError, TypeError):
+                pass
+        cr_url = (
+            show.links.filter(link_type__slug="crunchyroll")
+            .values_list("url", flat=True)
+            .first() or ""
+        )
+        cr_shows.append({"show": show, "latest_posted": latest_int, "cr_url": cr_url})
+
     return render(request, "shows/scan.html", {
         "last_scan_result": last_scan_result,
         "scheduler_config": scheduler_config,
@@ -615,17 +643,16 @@ def scan_page(request):
         "scheduler_running": scheduler_running,
         "scheduler_last_heartbeat": scheduler_last_heartbeat,
         "enabled_shows": enabled_shows,
+        "cr_shows": cr_shows,
     })
 
 
 @admin_required
 @require_POST
 def trigger_scan(request):
-    """Trigger a scan for new episodes from Nyaa.si and Crunchyroll."""
-    from .services import NyaaScanner, CrunchyrollScanner
-    from .services.scan_result import ScanResult
+    """Trigger a Nyaa scan for new episodes."""
+    from .services import NyaaScanner
 
-    # Get enabled shows
     enabled_shows = Show.objects.filter(enabled=True)
 
     if not enabled_shows.exists():
@@ -635,21 +662,12 @@ def trigger_scan(request):
         }, status=400)
 
     try:
-        nyaa_result = NyaaScanner().scan_recent(enabled_shows)
-        cr_result   = CrunchyrollScanner().scan_recent(enabled_shows)
+        result = NyaaScanner().scan_recent(enabled_shows)
 
-        result = ScanResult(
-            scan_time=nyaa_result.scan_time,
-            episodes_found=nyaa_result.episodes_found + cr_result.episodes_found,
-            shows_scanned=nyaa_result.shows_scanned,
-            errors=nyaa_result.errors + cr_result.errors,
-        )
-
-        # Store results in session
         request.session["last_scan_result"] = result.to_dict()
 
         logger.info(
-            f"Scan completed: {len(result.episodes_found)} episodes found "
+            f"Nyaa scan completed: {len(result.episodes_found)} episodes found "
             f"across {result.shows_scanned} shows"
         )
 
@@ -659,7 +677,7 @@ def trigger_scan(request):
         })
 
     except Exception as e:
-        logger.exception("Error during scan")
+        logger.exception("Error during Nyaa scan")
         return JsonResponse({
             "success": False,
             "error": str(e),
@@ -668,19 +686,55 @@ def trigger_scan(request):
 
 @admin_required
 @require_POST
-def scan_individual_show(request, show_id):
-    """Scan Nyaa for a single show using NyaaSpecificScanner.
+def trigger_stream_scan(request):
+    """Trigger a stream scan for new episodes from Crunchyroll."""
+    from .services import CrunchyrollScanner
+
+    enabled_shows = Show.objects.filter(enabled=True)
+
+    if not enabled_shows.exists():
+        return JsonResponse({
+            "success": False,
+            "error": "No enabled shows found",
+        }, status=400)
+
+    try:
+        result = CrunchyrollScanner().scan_recent(enabled_shows)
+
+        request.session["last_scan_result"] = result.to_dict()
+
+        logger.info(
+            f"Stream scan completed: {len(result.episodes_found)} episodes found "
+            f"across {result.shows_scanned} shows"
+        )
+
+        return JsonResponse({
+            "success": True,
+            **result.to_dict(),
+        })
+
+    except Exception as e:
+        logger.exception("Error during stream scan")
+        return JsonResponse({
+            "success": False,
+            "error": str(e),
+        }, status=500)
+
+
+@admin_required
+@require_POST
+def scan_stream_show(request, show_id):
+    """Scan Crunchyroll for a single show.
 
     Returns episodes found for that show without touching the session, so
     the frontend can call this per-show and accumulate results itself.
     """
-    from .services.nyaa_specific import NyaaSpecificScanner
+    from .services import CrunchyrollScanner
 
     show = get_object_or_404(Show, id=show_id, enabled=True)
 
     try:
-        scanner = NyaaSpecificScanner()
-        result = scanner.scan_show(show, max_age_days=7)
+        result = CrunchyrollScanner().scan_recent([show])
 
         return JsonResponse({
             "success": True,
@@ -688,6 +742,44 @@ def scan_individual_show(request, show_id):
             "show_title": show.title,
             "episodes_found": result.to_dict()["episodes_found"],
             "errors": result.errors,
+        })
+
+    except Exception as e:
+        logger.exception(f"Error scanning stream for show {show.title}")
+        return JsonResponse({
+            "success": False,
+            "show_id": show.id,
+            "show_title": show.title,
+            "error": str(e),
+        }, status=500)
+
+
+@admin_required
+@require_POST
+def scan_individual_show(request, show_id):
+    """Scan Nyaa and Crunchyroll for a single show.
+
+    Returns episodes found for that show without touching the session, so
+    the frontend can call this per-show and accumulate results itself.
+    """
+    from .services.nyaa_specific import NyaaSpecificScanner
+    from .services import CrunchyrollScanner
+
+    show = get_object_or_404(Show, id=show_id, enabled=True)
+
+    try:
+        nyaa_result = NyaaSpecificScanner().scan_show(show, max_age_days=7)
+        cr_result = CrunchyrollScanner().scan_recent([show])
+
+        episodes = nyaa_result.to_dict()["episodes_found"] + cr_result.to_dict()["episodes_found"]
+        errors = nyaa_result.errors + cr_result.errors
+
+        return JsonResponse({
+            "success": True,
+            "show_id": show.id,
+            "show_title": show.title,
+            "episodes_found": episodes,
+            "errors": errors,
         })
 
     except Exception as e:
@@ -751,14 +843,14 @@ def store_scan_results(request):
 @admin_required
 @require_POST
 def trigger_scan_individual(request):
-    """Trigger a targeted per-show scan using NyaaSpecificScanner.
+    """Trigger a targeted per-show scan using NyaaSpecificScanner and CrunchyrollScanner.
 
-    Loops through every enabled show and issues a dedicated Nyaa search
-    for each one, then merges all results into a single ScanResult stored
-    in the session (same shape as trigger_scan).
+    Loops through every enabled show and issues a dedicated Nyaa search and a
+    Crunchyroll lookup for each one, then merges all results into a single
+    ScanResult stored in the session (same shape as trigger_scan).
     """
     from datetime import datetime
-    from .services import NyaaSpecificScanner
+    from .services import NyaaSpecificScanner, CrunchyrollScanner
     from .services.scan_result import ScanResult
 
     enabled_shows = list(Show.objects.filter(enabled=True))
@@ -770,13 +862,17 @@ def trigger_scan_individual(request):
         }, status=400)
 
     try:
-        scanner = NyaaSpecificScanner()
+        nyaa_scanner = NyaaSpecificScanner()
+        cr_scanner = CrunchyrollScanner()
         combined = ScanResult(scan_time=datetime.now(), shows_scanned=0)
 
         for show in enabled_shows:
-            result = scanner.scan_show(show)
-            combined.episodes_found.extend(result.episodes_found)
-            combined.errors.extend(result.errors)
+            nyaa_result = nyaa_scanner.scan_show(show)
+            cr_result = cr_scanner.scan_recent([show])
+            combined.episodes_found.extend(nyaa_result.episodes_found)
+            combined.episodes_found.extend(cr_result.episodes_found)
+            combined.errors.extend(nyaa_result.errors)
+            combined.errors.extend(cr_result.errors)
             combined.shows_scanned += 1
 
         request.session["last_scan_result"] = combined.to_dict()
