@@ -1,8 +1,8 @@
 praw==7.8.1
 psycopg2-binary>=2.9
-django==6.0
-django-allauth==65.3.0
+django==6.0.6
+django-allauth==65.18.0
 django-apscheduler>=0.6.2
-pyyaml==6.0.2
+pyyaml==6.0.3
 feedparser>=6.0.0
 pytest-django>=4.5.0
