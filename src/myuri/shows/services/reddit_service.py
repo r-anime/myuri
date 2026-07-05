@@ -72,7 +72,12 @@ class RedditService:
         subreddit = self.reddit.subreddit(self.subreddit)
 
         # Submit the post
-        submission = subreddit.submit(title=title, selftext=body)
+        submission = subreddit.submit(
+            title=title,
+            selftext=body,
+            flair_id=self.templates.flair_id or None,
+            flair_text=self.templates.flair_text or None,
+        )
 
         # Edit the post to include itself in the discussions table
         updated_body = self._build_post_body(
@@ -124,7 +129,12 @@ class RedditService:
         megathread_title = self._build_megathread_title(show, start_episode, end_episode)
         megathread_body = self._build_megathread_body(show, start_episode, end_episode)
 
-        megathread_submission = subreddit.submit(title=megathread_title, selftext=megathread_body)
+        megathread_submission = subreddit.submit(
+            title=megathread_title,
+            selftext=megathread_body,
+            flair_id=self.templates.flair_id or None,
+            flair_text=self.templates.flair_text or None,
+        )
         logger.info(f"Posted megathread: {megathread_submission.url}")
 
         # Phase 2: Post all episodes (without complete discussions table)
@@ -135,7 +145,12 @@ class RedditService:
             title = self._build_title(show, episode_number, is_final)
             body = self._build_post_body(show, episode_number)
 
-            submission = subreddit.submit(title=title, selftext=body)
+            submission = subreddit.submit(
+                title=title,
+                selftext=body,
+                flair_id=self.templates.flair_id or None,
+                flair_text=self.templates.flair_text or None,
+            )
             batch_episodes.append((ep_num, submission.url, submission))
             logger.info(f"Posted episode {ep_num}: {submission.url}")
 
@@ -643,7 +658,12 @@ class RedditService:
         subreddit = self.reddit.subreddit(self.subreddit)
 
         # Submit the post
-        submission = subreddit.submit(title=title, selftext=body)
+        submission = subreddit.submit(
+            title=title,
+            selftext=body,
+            flair_id=self.templates.flair_id or None,
+            flair_text=self.templates.flair_text or None,
+        )
 
         return {
             "url": submission.url,
