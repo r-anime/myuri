@@ -89,14 +89,14 @@ class NotificationService:
                 f"\U0001F4FA New Episode Posted\n"
                 f"**Show:** {show_title}\n"
                 f"**Episode:** {episode}\n"
-                f"**Thread:** {url}"
+                f"**Thread:** <{url}>"
             )
         else:
             content = (
                 f"\U0001F4FA Episode Posted by {user or 'unknown'}\n"
                 f"**Show:** {show_title}\n"
                 f"**Episode:** {episode}\n"
-                f"**Thread:** {url}"
+                f"**Thread:** <{url}>"
             )
 
         notifier.send(content)
@@ -128,7 +128,7 @@ class NotificationService:
             f"\U0001F4FA Custom Post by {user or 'unknown'}\n"
             f"**Show:** {show_title}\n"
             f"**Subject:** {discussion_subject}\n"
-            f"**Thread:** {url}"
+            f"**Thread:** <{url}>"
         )
 
         notifier.send(content)
@@ -162,6 +162,6 @@ class NotificationService:
             f"**Episode:** {episode}"
         )
         if url:
-            content += f"\n**Thread:** {url}"
+            content += f"\n**Thread:** <{url}>"
 
         notifier.send(content)
