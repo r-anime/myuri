@@ -2,6 +2,7 @@
 __pycache__/
 *.py[codz]
 # Custom
+staticfiles/
 config_debug.ini
 config_secret.ini
 config_reddit.ini

@@ -24,8 +24,8 @@ urlpatterns = [
     path("", include("shows.urls")),
     path("admin/", admin.site.urls),
     path("accounts/", include("allauth.urls")),
-    # Serve static files (even when DEBUG=False)
-    re_path(r'^static/(?P<path>.*)$', serve, {'document_root': settings.STATICFILES_DIRS[0]}),
+    # Serve static files (even when DEBUG=False); requires `manage.py collectstatic` to have run
+    re_path(r'^static/(?P<path>.*)$', serve, {'document_root': settings.STATIC_ROOT}),
 ]
 
 
