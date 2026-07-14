@@ -31,7 +31,7 @@ class NyaaScannerTests(TestCase):
         # Five shared shows used by test_find_matching_shows.
         # Each exercises a distinct matching path.
         cls.show_frieren    = Show.objects.create(title="Sousou no Frieren", title_en="Frieren: Beyond Journey's End", aliases="Frieren",     has_source=False, season=cls.season)
-        cls.show_dungeon    = Show.objects.create(title="Dungeon Meshi",     title_en="",             aliases="Delicious in Dungeon",  has_source=False, season=cls.season)
+        cls.show_dungeon    = Show.objects.create(title="Dungeon Meshi",     title_en="",             aliases="Delicious in Dungeon\nMeshi",  has_source=False, season=cls.season)
         cls.show_kimetsu    = Show.objects.create(title="Kimetsu no Yaiba",  title_en="Demon Slayer", aliases="",                             has_source=False, season=cls.season)
         cls.show_rezero     = Show.objects.create(title="Re:Zero",           title_en="",             aliases="",                             has_source=False, season=cls.season)
 
@@ -257,7 +257,7 @@ class NyaaScannerTests(TestCase):
         scanner = NyaaScanner()
         all_shows = [
             self.show_frieren,   # title="Frieren", title_en="Sousou no Frieren"
-            self.show_dungeon,   # title="Dungeon Meshi", aliases="Delicious in Dungeon"
+            self.show_dungeon,   # title="Dungeon Meshi", aliases="Delicious in Dungeon", "Meshi"
             self.show_kimetsu,   # title="Kimetsu no Yaiba", title_en="Demon Slayer"
             self.show_rezero,    # title="Re:Zero"
         ]
