@@ -59,8 +59,6 @@ title_with_en = {show_name} • {show_name_en} - Episode {episode} discussion
 title_postfix_final = - FINAL
 flair_id =
 flair_text =
-flair_id = 
-flair_text = 
 
 body =
 	*{show_name}*, episode {episode}{episode_alt_number}{episode_name}
