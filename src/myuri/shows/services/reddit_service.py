@@ -680,11 +680,11 @@ class RedditService:
         show_name = custom_show.get("show_name", "")
         show_name_en = custom_show.get("show_name_en", "")
 
-        # Build title directly with discussion_subject (e.g., "Episode 1", "Movie")
+        # Build title directly with discussion_subject (e.g., "Episode 1 discussion", "Movie discussion")
         if show_name_en:
-            title = f"{show_name} • {show_name_en} - {discussion_subject} discussion"
+            title = f"{show_name} • {show_name_en} - {discussion_subject}"
         else:
-            title = f"{show_name} - {discussion_subject} discussion"
+            title = f"{show_name} - {discussion_subject}"
 
         if is_final and self.templates.title_postfix_final:
             title += " " + self.templates.title_postfix_final
@@ -751,7 +751,7 @@ class RedditService:
         return "\n".join(lines) if lines else "*None*"
 
     def _format_custom_links(self, info_links: list) -> str:
-        """Format information links from a list of {name, url} dicts."""
+        """Format information links from a list of {name, url, slug} dicts."""
         if not info_links:
             return "*None*"
 
@@ -761,12 +761,9 @@ class RedditService:
             name = link.get("name", "")
             url = link.get("url", "")
             if name and url:
-                # Handle subreddit links specially
-                if url.startswith("/r/"):
-                    lines.append(format_template.format(
-                        site_name=url,
-                        link=f"https://www.reddit.com{url}",
-                    ))
+                # Subreddit links are plain text, not a markdown link
+                if link.get("slug") == "subreddit":
+                    lines.append(f"* {url}")
                 else:
                     lines.append(format_template.format(
                         site_name=name,
