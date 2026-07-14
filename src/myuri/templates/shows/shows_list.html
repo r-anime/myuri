@@ -593,6 +593,71 @@
         outline: none;
         border-color: var(--accent-color);
     }
+
+    .show-disabled-label {
+        display: flex;
+        align-items: center;
+        gap: 5px;
+        margin-top: 8px;
+        font-size: 0.8em;
+        color: var(--text-muted);
+        cursor: pointer;
+    }
+
+    .show-disabled-label input[type="checkbox"] {
+        cursor: pointer;
+    }
+
+    .show-item.show-disabled {
+        opacity: 0.55;
+    }
+
+    .aliases-list {
+        list-style: none;
+        padding: 0;
+        margin: 0 0 8px 0;
+    }
+
+    .alias-row {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        padding: 4px 0;
+    }
+
+    .alias-input {
+        flex: 1;
+        min-width: 0;
+        padding: 4px 7px;
+        border: 1px solid var(--border-color);
+        border-radius: 3px;
+        font-size: 0.78em;
+        box-sizing: border-box;
+        background: var(--input-bg);
+        color: var(--text-primary);
+    }
+
+    .alias-input:focus {
+        outline: none;
+        border-color: var(--accent-color);
+    }
+
+    .alias-delete-btn {
+        background: transparent;
+        border: 1px solid var(--border-color);
+        border-radius: 3px;
+        cursor: pointer;
+        font-size: 0.75em;
+        color: var(--text-muted);
+        padding: 1px 5px;
+        line-height: 1.4;
+        flex-shrink: 0;
+    }
+
+    .alias-delete-btn:hover {
+        border-color: #c00;
+        color: #c00;
+    }
 </style>
 {% endblock %}
 
@@ -602,16 +667,21 @@
     <aside class="shows-sidebar">
         <div class="search-box">
             <input type="text" id="show-search" placeholder="Search shows..." class="search-input" autocomplete="off">
+            <label class="show-disabled-label">
+                <input type="checkbox" id="show-disabled-checkbox">
+                Show Disabled
+            </label>
         </div>
         <ul class="shows-nav" id="shows-list">
             {% for season, season_shows in seasons_with_shows %}
             <li class="season-header" data-season="{{ season.id }}">{{ season }}</li>
             {% for show in season_shows %}
-            <li class="show-item {% if selected_show.id == show.id %}active{% endif %}"
+            <li class="show-item {% if selected_show.id == show.id %}active{% endif %}{% if not show.enabled %} show-disabled{% endif %}"
                 data-title="{{ show.title|lower }}"
                 data-title-en="{{ show.title_en|lower }}"
                 data-aliases="{{ show.aliases|lower }}"
-                data-season-id="{{ season.id }}">
+                data-season-id="{{ season.id }}"
+                data-enabled="{{ show.enabled|yesno:'true,false' }}">
                 <a href="{% url 'shows:show_detail' show.id %}"><span class="status-dot {{ show.status_color }}"></span>{{ show.title }}</a>
             </li>
             {% endfor %}
@@ -684,7 +754,29 @@
                             {{ selected_show.has_source|yesno:"Yes,No" }}
                         </span>
                     </div>
+                    <div class="show-info-row">
+                        <div class="show-info-header">
+                            <span class="show-info-label">Episode Count</span>
+                            <button class="info-edit-btn" id="edit-episode-count-btn"
+                                    data-value="{{ selected_show.episode_count|default_if_none:'' }}">&#9998;</button>
+                        </div>
+                        <span class="show-info-value" id="show-episode-count-display">{{ selected_show.episode_count|default:"Unknown" }}</span>
+                    </div>
                 </div>
+                <h3>Aliases</h3>
+                <ul class="aliases-list" id="aliases-list" data-show-id="{{ selected_show.id }}">
+                    {% for alias in aliases_list %}
+                    <li class="alias-row">
+                        <input type="text" class="alias-input" value="{{ alias }}">
+                        <button class="alias-delete-btn" title="Remove alias">&#10005;</button>
+                    </li>
+                    {% empty %}
+                    <li class="empty" id="aliases-empty">No aliases</li>
+                    {% endfor %}
+                </ul>
+                <button class="btn action-btn" id="add-alias-btn">
+                    + Add Alias
+                </button>
                 <h3>Show Links</h3>
                 <ul class="links-list" id="links-list">
                     {% for link in show_links %}
@@ -751,27 +843,31 @@
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    // Search functionality
+    // Search / disabled-filter functionality
     const searchInput = document.getElementById('show-search');
+    const showDisabledCheckbox = document.getElementById('show-disabled-checkbox');
     const showsList = document.getElementById('shows-list');
     const showItems = showsList.querySelectorAll('.show-item');
     const noResults = document.getElementById('no-results');
 
-    searchInput.addEventListener('input', function() {
-        const query = this.value.toLowerCase().trim();
+    function applyShowFilter() {
+        const query = searchInput.value.toLowerCase().trim();
+        const showDisabled = showDisabledCheckbox.checked;
         let visibleCount = 0;
 
         showItems.forEach(function(item) {
             const title = item.dataset.title || '';
             const titleEn = item.dataset.titleEn || '';
             const aliases = item.dataset.aliases || '';
+            const isEnabled = item.dataset.enabled === 'true';
 
-            const matches = query === '' ||
+            const matchesQuery = query === '' ||
                 title.includes(query) ||
                 titleEn.includes(query) ||
                 aliases.includes(query);
+            const matchesEnabled = isEnabled || showDisabled;
 
-            if (matches) {
+            if (matchesQuery && matchesEnabled) {
                 item.style.display = '';
                 visibleCount++;
             } else {
@@ -789,6 +885,15 @@ document.addEventListener('DOMContentLoaded', function() {
             ).some(item => item.style.display !== 'none');
             header.style.display = hasVisible ? '' : 'none';
         });
+    }
+
+    showDisabledCheckbox.checked = localStorage.getItem('showDisabledShows') === 'true';
+    applyShowFilter();
+
+    searchInput.addEventListener('input', applyShowFilter);
+    showDisabledCheckbox.addEventListener('change', function() {
+        localStorage.setItem('showDisabledShows', showDisabledCheckbox.checked);
+        applyShowFilter();
     });
 
     // Fire Next Episode functionality
@@ -1316,6 +1421,131 @@ document.addEventListener('DOMContentLoaded', function() {
             })
             .catch(err => alert('Error: ' + err.message));
         });
+    }
+
+    // Show Info — Episode Count edit
+    const editEpisodeCountBtn = document.getElementById('edit-episode-count-btn');
+    if (editEpisodeCountBtn) {
+        editEpisodeCountBtn.addEventListener('click', function() {
+            const infoList = document.querySelector('.show-info-list');
+            const showId = infoList.dataset.showId;
+            const currentValue = this.dataset.value;
+
+            const overlay = document.createElement('div');
+            overlay.className = 'confirm-overlay';
+            overlay.innerHTML = `
+                <div class="confirm-dialog confirm-dialog--wide">
+                    <h4>Change Episode Count</h4>
+                    <div class="dialog-form">
+                        <div class="form-group">
+                            <label for="episode-count-input">Episode Count</label>
+                            <input type="number" id="episode-count-input" min="1" value="${escapeHtml(currentValue)}" placeholder="Unknown">
+                        </div>
+                    </div>
+                    <div class="dialog-buttons">
+                        <button class="btn btn-cancel" id="episode-count-cancel">Cancel</button>
+                        <button class="btn" id="episode-count-ok">Save</button>
+                    </div>
+                </div>
+            `;
+            document.body.appendChild(overlay);
+
+            const countInput = document.getElementById('episode-count-input');
+            countInput.focus();
+
+            document.getElementById('episode-count-cancel').addEventListener('click', () => overlay.remove());
+            overlay.addEventListener('click', e => { if (e.target === overlay) overlay.remove(); });
+
+            document.getElementById('episode-count-ok').addEventListener('click', function() {
+                const raw = countInput.value.trim();
+                const episodeCount = raw === '' ? null : parseInt(raw, 10);
+                overlay.remove();
+                fetch(`/shows/${showId}/update-episode-count/`, {
+                    method: 'POST',
+                    headers: { 'X-CSRFToken': getCsrfToken(), 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ episode_count: episodeCount }),
+                })
+                .then(r => r.json())
+                .then(data => {
+                    if (!data.success) { alert('Error: ' + data.error); return; }
+                    document.getElementById('show-episode-count-display').textContent = data.episode_count === null ? 'Unknown' : data.episode_count;
+                    editEpisodeCountBtn.dataset.value = data.episode_count === null ? '' : data.episode_count;
+                })
+                .catch(err => alert('Error: ' + err.message));
+            });
+        });
+    }
+
+    // Aliases management
+    const aliasesList = document.getElementById('aliases-list');
+    if (aliasesList) {
+        const aliasesShowId = aliasesList.dataset.showId;
+
+        function saveAliases() {
+            const values = Array.from(aliasesList.querySelectorAll('.alias-input'))
+                .map(input => input.value.trim())
+                .filter(v => v !== '');
+            fetch(`/shows/${aliasesShowId}/update-aliases/`, {
+                method: 'POST',
+                headers: { 'X-CSRFToken': getCsrfToken(), 'Content-Type': 'application/json' },
+                body: JSON.stringify({ aliases: values }),
+            })
+            .then(r => r.json())
+            .then(data => {
+                if (!data.success) { alert('Error: ' + data.error); return; }
+                const activeItem = document.querySelector('.show-item.active');
+                if (activeItem) {
+                    activeItem.dataset.aliases = data.aliases.join(' ').toLowerCase();
+                }
+            })
+            .catch(err => alert('Error: ' + err.message));
+        }
+
+        function addAliasesEmptyStateIfNeeded() {
+            if (!aliasesList.querySelector('.alias-row') && !document.getElementById('aliases-empty')) {
+                const empty = document.createElement('li');
+                empty.className = 'empty';
+                empty.id = 'aliases-empty';
+                empty.textContent = 'No aliases';
+                aliasesList.appendChild(empty);
+            }
+        }
+
+        function bindAliasRow(li) {
+            const input = li.querySelector('.alias-input');
+            const deleteBtn = li.querySelector('.alias-delete-btn');
+            input.addEventListener('blur', saveAliases);
+            input.addEventListener('keydown', function(e) {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    input.blur();
+                }
+            });
+            deleteBtn.addEventListener('click', function() {
+                li.remove();
+                addAliasesEmptyStateIfNeeded();
+                saveAliases();
+            });
+        }
+
+        aliasesList.querySelectorAll('.alias-row').forEach(bindAliasRow);
+
+        const addAliasBtn = document.getElementById('add-alias-btn');
+        if (addAliasBtn) {
+            addAliasBtn.addEventListener('click', function() {
+                const emptyItem = document.getElementById('aliases-empty');
+                if (emptyItem) emptyItem.remove();
+                const li = document.createElement('li');
+                li.className = 'alias-row';
+                li.innerHTML = `
+                    <input type="text" class="alias-input" value="">
+                    <button class="alias-delete-btn" title="Remove alias">&#10005;</button>
+                `;
+                aliasesList.appendChild(li);
+                bindAliasRow(li);
+                li.querySelector('.alias-input').focus();
+            });
+        }
     }
 
     // Show Links management
