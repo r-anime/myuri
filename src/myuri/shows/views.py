@@ -467,7 +467,9 @@ def season_config_manage(request):
 def custom_episode(request):
     """Render the custom episode posting form."""
     # Get link types for dropdowns, grouped by category
-    link_types = LinkType.objects.all().order_by("category", "display_order", "name")
+    # Excludes the "IGNORE" slug, which is a divider entry used only in the
+    # shows list "Add link" dropdown, not a real link type.
+    link_types = LinkType.objects.exclude(slug="IGNORE").order_by("category", "display_order", "name")
 
     # Build JSON data for JavaScript
     link_types_data = {
