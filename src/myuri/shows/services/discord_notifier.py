@@ -12,8 +12,8 @@ class DiscordNotifier:
     def __init__(self, webhook_url: str):
         self.webhook_url = webhook_url
 
-    def send(self, content: str) -> bool:
-        """Send message to Discord webhook.
+    def send(self, embeds: list) -> bool:
+        """Send embeds to Discord webhook.
 
         Returns True on success, False on failure.
         """
@@ -24,7 +24,7 @@ class DiscordNotifier:
         try:
             response = requests.post(
                 self.webhook_url,
-                json={"content": content},
+                json={"embeds": embeds},
                 timeout=10,
             )
             response.raise_for_status()

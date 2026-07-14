@@ -1,5 +1,6 @@
 """Notification service for episode posts."""
 import logging
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional
 
@@ -7,10 +8,19 @@ from .config_loader import WhitespaceFriendlyConfigParser
 
 logger = logging.getLogger(__name__)
 
+COLOR_POSTED = 0x57F287
+COLOR_CUSTOM = 0x5865F2
+COLOR_REMOVED = 0xED4245
+
 
 def _get_project_root() -> Path:
     """Get the project root directory (where config files live)."""
     return Path(__file__).parent.parent.parent.parent.parent
+
+
+def _truncate(text: str, length: int = 256) -> str:
+    """Truncate text to fit Discord embed field limits."""
+    return text if len(text) <= length else text[: length - 1] + "…"
 
 
 class NotificationService:
@@ -84,22 +94,17 @@ class NotificationService:
             logger.debug("Discord notifier not available (no webhook URL)")
             return
 
-        if is_automated:
-            content = (
-                f"\U0001F4FA New Episode Posted\n"
-                f"**Show:** {show_title}\n"
-                f"**Episode:** {episode}\n"
-                f"**Thread:** <{url}>"
-            )
-        else:
-            content = (
-                f"\U0001F4FA Episode Posted by {user or 'unknown'}\n"
-                f"**Show:** {show_title}\n"
-                f"**Episode:** {episode}\n"
-                f"**Thread:** <{url}>"
-            )
+        embed = {
+            "title": _truncate(f"{show_title} - Episode {episode}"),
+            "url": url,
+            "description": "\U0001F4FA New Episode Posted" if is_automated else "\U0001F4FA Episode Posted",
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "color": COLOR_POSTED,
+        }
+        if user:
+            embed["author"] = {"name": f"u/{user}"}
 
-        notifier.send(content)
+        notifier.send([embed])
 
     def notify_custom_episode_posted(
         self,
@@ -124,14 +129,17 @@ class NotificationService:
             logger.debug("Discord notifier not available (no webhook URL)")
             return
 
-        content = (
-            f"\U0001F4FA Custom Post by {user or 'unknown'}\n"
-            f"**Show:** {show_title}\n"
-            f"**Subject:** {discussion_subject}\n"
-            f"**Thread:** <{url}>"
-        )
+        embed = {
+            "title": _truncate(f"{show_title} - {discussion_subject}"),
+            "url": url,
+            "description": "\U0001F4FA Custom Post",
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "color": COLOR_CUSTOM,
+        }
+        if user:
+            embed["author"] = {"name": f"u/{user}"}
 
-        notifier.send(content)
+        notifier.send([embed])
 
     def notify_episode_removed(
         self,
@@ -156,12 +164,15 @@ class NotificationService:
             logger.debug("Discord notifier not available (no webhook URL)")
             return
 
-        content = (
-            f"\U0001F5D1 Episode Removed by {user or 'unknown'}\n"
-            f"**Show:** {show_title}\n"
-            f"**Episode:** {episode}"
-        )
+        embed = {
+            "title": _truncate(f"{show_title} - Episode {episode}"),
+            "description": "\U0001F5D1 Episode Removed",
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "color": COLOR_REMOVED,
+        }
         if url:
-            content += f"\n**Thread:** <{url}>"
+            embed["url"] = url
+        if user:
+            embed["author"] = {"name": f"u/{user}"}
 
-        notifier.send(content)
+        notifier.send([embed])
