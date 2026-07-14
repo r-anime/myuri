@@ -1,0 +1,28 @@
+---
+name: Tests
+on: # yamllint disable-line rule:truthy
+  push:
+    branches:
+      - "*"
+  pull_request:
+    branches:
+      - "*"
+jobs:
+  Tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.14.5"
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+      - name: Create config.ini
+        run: |
+          cp config.ini.example config.ini
+          python -c "import secrets; print(secrets.token_urlsafe(50))" > /tmp/secret_key
+          sed -i "s/^secret_key = *$/secret_key = $(cat /tmp/secret_key)/" config.ini
+      - name: Run tests
+        working-directory: src/myuri
+        run: python manage.py test
