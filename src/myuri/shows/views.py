@@ -55,12 +55,12 @@ def home(request):
 @admin_required
 def shows_list(request, show_id=None):
     """Shows management page with sidebar and show details."""
-    enabled_shows = Show.objects.filter(enabled=True).select_related("season", "franchise")
+    shows_qs = Show.objects.all().select_related("season", "franchise")
 
     # Get search query
     search_query = request.GET.get("q", "")
     if search_query:
-        enabled_shows = enabled_shows.filter(title__icontains=search_query)
+        shows_qs = shows_qs.filter(title__icontains=search_query)
 
     # Get selected show
     selected_show = None
@@ -70,23 +70,24 @@ def shows_list(request, show_id=None):
         selected_show = get_object_or_404(Show, id=show_id)
         episodes = selected_show.episodes.all().order_by("order")
         last_active_episode = selected_show.episodes.filter(scheduled_for_removal=False).order_by("-order").first()
-    elif enabled_shows.exists():
-        # Default to first show if none selected
-        selected_show = enabled_shows.first()
-        episodes = selected_show.episodes.all().order_by("order")
-        last_active_episode = selected_show.episodes.filter(scheduled_for_removal=False).order_by("-order").first()
+    else:
+        # Default to first enabled show if none selected, falling back to any show
+        selected_show = shows_qs.filter(enabled=True).first() or shows_qs.first()
+        if selected_show:
+            episodes = selected_show.episodes.all().order_by("order")
+            last_active_episode = selected_show.episodes.filter(scheduled_for_removal=False).order_by("-order").first()
 
     latest_date_map = {
         row['show_id']: row['latest_air']
         for row in Episode.objects
-            .filter(show__in=enabled_shows, discussion_url__gt='', air_date__isnull=False)
+            .filter(show__in=shows_qs, discussion_url__gt='', air_date__isnull=False)
             .values('show_id')
             .annotate(latest_air=Max('air_date'))
     }
 
     now = timezone.now()
     season_map = defaultdict(list)
-    for show in enabled_shows:
+    for show in shows_qs:
         latest = latest_date_map.get(show.id)
         if latest is None:
             show.status_color = 'grey'
@@ -108,18 +109,20 @@ def shows_list(request, show_id=None):
 
     show_links = []
     link_types_json = "[]"
+    aliases_list = []
     if selected_show:
         show_links = list(
             selected_show.links.select_related("link_type")
             .order_by("link_type__display_order", "link_type__name")
         )
         link_types_json = json.dumps([{"id": lt.id, "name": lt.name} for lt in LinkType.objects.all()])
+        aliases_list = [a.strip() for a in selected_show.aliases.splitlines() if a.strip()]
 
     all_seasons = list(Season.objects.all())
     seasons_json = json.dumps([{"id": s.id, "label": str(s)} for s in all_seasons])
 
     return render(request, "shows/shows_list.html", {
-        "shows": enabled_shows,
+        "shows": shows_qs,
         "seasons_with_shows": seasons_with_shows,
         "selected_show": selected_show,
         "episodes": episodes,
@@ -128,6 +131,7 @@ def shows_list(request, show_id=None):
         "show_links": show_links,
         "link_types_json": link_types_json,
         "seasons_json": seasons_json,
+        "aliases_list": aliases_list,
     })
 
 
@@ -1216,3 +1220,57 @@ def update_show_has_source(request, show_id):
     show.has_source = not show.has_source
     show.save()
     return JsonResponse({"success": True, "has_source": show.has_source})
+
+
+@admin_required
+@require_POST
+def update_show_enabled(request, show_id):
+    """Toggle the enabled flag for a show."""
+    show = get_object_or_404(Show, id=show_id)
+    show.enabled = not show.enabled
+    show.save()
+    return JsonResponse({"success": True, "enabled": show.enabled})
+
+
+@admin_required
+@require_POST
+def update_show_episode_count(request, show_id):
+    """Update the episode count for a show."""
+    show = get_object_or_404(Show, id=show_id)
+    try:
+        data = json.loads(request.body)
+    except json.JSONDecodeError:
+        return JsonResponse({"success": False, "error": "Invalid JSON"}, status=400)
+
+    episode_count = data.get("episode_count")
+    if episode_count is not None:
+        try:
+            episode_count = int(episode_count)
+        except (TypeError, ValueError):
+            return JsonResponse({"success": False, "error": "episode_count must be a number or null"}, status=400)
+        if episode_count < 1:
+            return JsonResponse({"success": False, "error": "episode_count must be at least 1"}, status=400)
+
+    show.episode_count = episode_count
+    show.save()
+    return JsonResponse({"success": True, "episode_count": show.episode_count})
+
+
+@admin_required
+@require_POST
+def update_show_aliases(request, show_id):
+    """Replace the alias list for a show."""
+    show = get_object_or_404(Show, id=show_id)
+    try:
+        data = json.loads(request.body)
+    except json.JSONDecodeError:
+        return JsonResponse({"success": False, "error": "Invalid JSON"}, status=400)
+
+    aliases = data.get("aliases")
+    if not isinstance(aliases, list):
+        return JsonResponse({"success": False, "error": "aliases must be a list"}, status=400)
+
+    cleaned_aliases = [a.strip() for a in aliases if isinstance(a, str) and a.strip()]
+    show.aliases = "\n".join(cleaned_aliases)
+    show.save()
+    return JsonResponse({"success": True, "aliases": cleaned_aliases})
