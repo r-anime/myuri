@@ -489,6 +489,10 @@
         color: #4caf50;
     }
 
+    .enabled-yes {
+        color: #4caf50;
+    }
+
     .info-edit-btn {
         background: transparent;
         border: 1px solid var(--border-color);
@@ -677,6 +681,7 @@
             <li class="season-header" data-season="{{ season.id }}">{{ season }}</li>
             {% for show in season_shows %}
             <li class="show-item {% if selected_show.id == show.id %}active{% endif %}{% if not show.enabled %} show-disabled{% endif %}"
+                data-show-id="{{ show.id }}"
                 data-title="{{ show.title|lower }}"
                 data-title-en="{{ show.title_en|lower }}"
                 data-aliases="{{ show.aliases|lower }}"
@@ -752,6 +757,16 @@
                         </div>
                         <span class="show-info-value has-source-value {% if selected_show.has_source %}has-source-yes{% endif %}" id="show-has-source-display">
                             {{ selected_show.has_source|yesno:"Yes,No" }}
+                        </span>
+                    </div>
+                    <div class="show-info-row">
+                        <div class="show-info-header">
+                            <span class="show-info-label">Enabled</span>
+                            <button class="info-edit-btn" id="edit-enabled-btn"
+                                    data-value="{{ selected_show.enabled|yesno:'true,false' }}">&#9998;</button>
+                        </div>
+                        <span class="show-info-value enabled-value {% if selected_show.enabled %}enabled-yes{% endif %}" id="show-enabled-display">
+                            {{ selected_show.enabled|yesno:"Yes,No" }}
                         </span>
                     </div>
                     <div class="show-info-row">
@@ -1418,6 +1433,34 @@ document.addEventListener('DOMContentLoaded', function() {
                 display.textContent = data.has_source ? 'Yes' : 'No';
                 display.classList.toggle('has-source-yes', data.has_source);
                 editHasSourceBtn.dataset.value = data.has_source ? 'true' : 'false';
+            })
+            .catch(err => alert('Error: ' + err.message));
+        });
+    }
+
+    // Show Info — Enabled toggle
+    const editEnabledBtn = document.getElementById('edit-enabled-btn');
+    if (editEnabledBtn) {
+        editEnabledBtn.addEventListener('click', function() {
+            const infoList = document.querySelector('.show-info-list');
+            const showId = infoList.dataset.showId;
+            fetch(`/shows/${showId}/update-enabled/`, {
+                method: 'POST',
+                headers: { 'X-CSRFToken': getCsrfToken(), 'Content-Type': 'application/json' },
+            })
+            .then(r => r.json())
+            .then(data => {
+                if (!data.success) { alert('Error: ' + data.error); return; }
+                const display = document.getElementById('show-enabled-display');
+                display.textContent = data.enabled ? 'Yes' : 'No';
+                display.classList.toggle('enabled-yes', data.enabled);
+                editEnabledBtn.dataset.value = data.enabled ? 'true' : 'false';
+
+                const sidebarItem = document.querySelector(`.show-item[data-show-id="${showId}"]`);
+                if (sidebarItem) {
+                    sidebarItem.classList.toggle('show-disabled', !data.enabled);
+                    sidebarItem.dataset.enabled = data.enabled ? 'true' : 'false';
+                }
             })
             .catch(err => alert('Error: ' + err.message));
         });

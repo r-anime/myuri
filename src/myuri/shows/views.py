@@ -1224,6 +1224,16 @@ def update_show_has_source(request, show_id):
 
 @admin_required
 @require_POST
+def update_show_enabled(request, show_id):
+    """Toggle the enabled flag for a show."""
+    show = get_object_or_404(Show, id=show_id)
+    show.enabled = not show.enabled
+    show.save()
+    return JsonResponse({"success": True, "enabled": show.enabled})
+
+
+@admin_required
+@require_POST
 def update_show_episode_count(request, show_id):
     """Update the episode count for a show."""
     show = get_object_or_404(Show, id=show_id)

@@ -29,6 +29,7 @@ urlpatterns = [
     path("shows/<int:show_id>/links/<int:link_id>/delete/", views.delete_show_link, name="delete_show_link"),
     path("shows/<int:show_id>/update-season/", views.update_show_season, name="update_show_season"),
     path("shows/<int:show_id>/update-has-source/", views.update_show_has_source, name="update_show_has_source"),
+    path("shows/<int:show_id>/update-enabled/", views.update_show_enabled, name="update_show_enabled"),
     path("shows/<int:show_id>/update-episode-count/", views.update_show_episode_count, name="update_show_episode_count"),
     path("shows/<int:show_id>/update-aliases/", views.update_show_aliases, name="update_show_aliases"),
 ]
