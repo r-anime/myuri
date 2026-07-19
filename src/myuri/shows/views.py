@@ -195,6 +195,7 @@ def fire_next_episode(request, show_id):
             episode=next_number,
             url=result["url"],
             user=request.user.username if request.user.is_authenticated else None,
+            show_title_en=show.title_en or None,
         )
 
         return JsonResponse({
@@ -1040,6 +1041,7 @@ def fire_custom_episode(request):
             discussion_subject=discussion_subject,
             url=result["url"],
             user=request.user.username if request.user.is_authenticated else None,
+            show_title_en=custom_show["show_name_en"] or None,
         )
 
         return JsonResponse({

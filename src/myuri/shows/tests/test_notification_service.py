@@ -43,6 +43,7 @@ class NotificationServiceTests(TestCase):
         embed = self._sent_embed()
         self.assertEqual(embed["title"], "Test Show - Episode 5")
         self.assertEqual(embed["url"], "https://reddit.com/thread")
+        self.assertEqual(embed["description"], "\U0001F4FA New Episode Posted")
         self.assertEqual(embed["color"], COLOR_POSTED)
         self.assertNotIn("author", embed)
 
@@ -56,7 +57,39 @@ class NotificationServiceTests(TestCase):
 
         embed = self._sent_embed()
         self.assertEqual(embed["author"], {"name": "u/someuser"})
+        self.assertEqual(embed["description"], "\U0001F4FA Episode Posted")
+        self.assertEqual(embed["color"], COLOR_CUSTOM)
+
+    def test_notify_episode_posted_automated_with_title_en(self):
+        self.service.notify_episode_posted(
+            show_title="Test Show",
+            episode="5",
+            url="https://reddit.com/thread",
+            is_automated=True,
+            show_title_en="Test Show English",
+        )
+
+        embed = self._sent_embed()
+        self.assertEqual(
+            embed["description"],
+            "Test Show English\n\U0001F4FA New Episode Posted",
+        )
         self.assertEqual(embed["color"], COLOR_POSTED)
+
+    def test_notify_episode_posted_manual_with_title_en(self):
+        self.service.notify_episode_posted(
+            show_title="Test Show",
+            episode="5",
+            url="https://reddit.com/thread",
+            show_title_en="Test Show English",
+        )
+
+        embed = self._sent_embed()
+        self.assertEqual(
+            embed["description"],
+            "Test Show English\n\U0001F4FA Episode Posted",
+        )
+        self.assertEqual(embed["color"], COLOR_CUSTOM)
 
     def test_notify_custom_episode_posted(self):
         self.service.notify_custom_episode_posted(
@@ -68,8 +101,24 @@ class NotificationServiceTests(TestCase):
 
         embed = self._sent_embed()
         self.assertEqual(embed["title"], "Test Show - Movie Discussion")
+        self.assertEqual(embed["description"], "\U0001F4FA Custom Post")
         self.assertEqual(embed["color"], COLOR_CUSTOM)
         self.assertEqual(embed["author"], {"name": "u/someuser"})
+
+    def test_notify_custom_episode_posted_with_title_en(self):
+        self.service.notify_custom_episode_posted(
+            show_title="Test Show",
+            discussion_subject="Movie Discussion",
+            url="https://reddit.com/thread",
+            show_title_en="Test Show English",
+        )
+
+        embed = self._sent_embed()
+        self.assertEqual(
+            embed["description"],
+            "Test Show English\n\U0001F4FA Custom Post",
+        )
+        self.assertEqual(embed["color"], COLOR_CUSTOM)
 
     def test_notify_episode_removed_with_url_and_user(self):
         self.service.notify_episode_removed(

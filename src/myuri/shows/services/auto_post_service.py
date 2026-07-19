@@ -203,6 +203,7 @@ class AutoPostService:
                     episode=str(eligible_episode.scanned_episode),
                     url=result["url"],
                     is_automated=True,
+                    show_title_en=show.title_en or None,
                 )
 
             except Exception as e:
