@@ -76,6 +76,7 @@ class NotificationService:
         url: str,
         user: Optional[str] = None,
         is_automated: bool = False,
+        show_title_en: Optional[str] = None,
     ):
         """Send notification when an episode is posted.
 
@@ -85,6 +86,7 @@ class NotificationService:
             url: Reddit discussion thread URL
             user: Username who triggered the post (None for automated)
             is_automated: True if posted by scheduled scanner
+            show_title_en: English title of the show, if known
         """
         if not self._is_discord_enabled():
             return
@@ -94,12 +96,16 @@ class NotificationService:
             logger.debug("Discord notifier not available (no webhook URL)")
             return
 
+        description = "\U0001F4FA New Episode Posted" if is_automated else "\U0001F4FA Episode Posted"
+        if show_title_en:
+            description = f"{show_title_en}\n{description}"
+
         embed = {
             "title": _truncate(f"{show_title} - Episode {episode}"),
             "url": url,
-            "description": "\U0001F4FA New Episode Posted" if is_automated else "\U0001F4FA Episode Posted",
+            "description": description,
             "timestamp": datetime.now(timezone.utc).isoformat(),
-            "color": COLOR_POSTED,
+            "color": COLOR_POSTED if is_automated else COLOR_CUSTOM,
         }
         if user:
             embed["author"] = {"name": f"u/{user}"}
@@ -112,6 +118,7 @@ class NotificationService:
         discussion_subject: str,
         url: str,
         user: Optional[str] = None,
+        show_title_en: Optional[str] = None,
     ):
         """Send notification when a custom episode is posted.
 
@@ -120,6 +127,7 @@ class NotificationService:
             discussion_subject: Custom subject/title of the discussion
             url: Reddit discussion thread URL
             user: Username who triggered the post
+            show_title_en: English title of the show, if known
         """
         if not self._is_discord_enabled():
             return
@@ -129,10 +137,14 @@ class NotificationService:
             logger.debug("Discord notifier not available (no webhook URL)")
             return
 
+        description = "\U0001F4FA Custom Post"
+        if show_title_en:
+            description = f"{show_title_en}\n{description}"
+
         embed = {
             "title": _truncate(f"{show_title} - {discussion_subject}"),
             "url": url,
-            "description": "\U0001F4FA Custom Post",
+            "description": description,
             "timestamp": datetime.now(timezone.utc).isoformat(),
             "color": COLOR_CUSTOM,
         }
