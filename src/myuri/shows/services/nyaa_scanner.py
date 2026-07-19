@@ -1,5 +1,6 @@
 import logging
 import re
+import unicodedata
 from datetime import datetime, timedelta
 from typing import Optional
 
@@ -121,8 +122,7 @@ class NyaaScanner:
         """Find shows that match the torrent title."""
         found_shows = []
         title = torrent.get("title", "")
-        normalized_title = self._normalize_name(title)
-        title_words = set(normalized_title.split())
+        title_word_sets = [set(v.split()) for v in self._normalize_name_variants(title)]
 
         for show in shows:
             # Collect all possible names for the show
@@ -136,9 +136,14 @@ class NyaaScanner:
                 if not name.strip():
                     continue
 
-                # Match if all words in show name are in torrent title
-                show_words = set(self._normalize_name(name).split())
-                if show_words and show_words.issubset(title_words):
+                # Match if all words in show name are in torrent title,
+                # trying both accent-preserving and accent-folded forms
+                show_word_sets = [set(v.split()) for v in self._normalize_name_variants(name)]
+                if any(
+                    show_words and show_words.issubset(title_words)
+                    for show_words in show_word_sets
+                    for title_words in title_word_sets
+                ):
                     found_shows.append(show)
                     break
 
@@ -199,3 +204,16 @@ class NyaaScanner:
         name = re.sub("season \\d( part \\d)?", " ", name)
         name = re.sub("\\s+", " ", name)
         return name.strip()
+
+    def _strip_accents(self, name: str) -> str:
+        """Fold accented/diacritic characters to their base ASCII letter (e.g. 'é' -> 'e')."""
+        decomposed = unicodedata.normalize("NFKD", name)
+        return "".join(c for c in decomposed if not unicodedata.combining(c))
+
+    def _normalize_name_variants(self, name: str) -> list:
+        """Return normalized forms of a name: as-is, and with accents folded to ASCII."""
+        variants = [self._normalize_name(name)]
+        ascii_variant = self._normalize_name(self._strip_accents(name))
+        if ascii_variant not in variants:
+            variants.append(ascii_variant)
+        return variants
