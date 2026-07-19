@@ -1,6 +1,6 @@
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import List, Optional
+from typing import Dict, List, Optional, Tuple
 
 
 @dataclass
@@ -63,3 +63,17 @@ class ScanResult:
             shows_scanned=data.get("shows_scanned", 0),
             errors=data.get("errors", []),
         )
+
+    def group_by_episode(self) -> Dict[Tuple[int, int], List[FoundEpisode]]:
+        """
+        Group episodes_found by (show_id, episode_number).
+
+        When multiple scanners (Nyaa, Nekobt, Crunchyroll, ...) find the same
+        show/episode, this collapses them into one group so callers can treat
+        it as a single episode with multiple contributing sources, rather than
+        as separate unrelated finds.
+        """
+        groups: Dict[Tuple[int, int], List[FoundEpisode]] = {}
+        for found in self.episodes_found:
+            groups.setdefault((found.show_id, found.episode_number), []).append(found)
+        return groups

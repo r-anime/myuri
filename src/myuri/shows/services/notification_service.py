@@ -2,7 +2,7 @@
 import logging
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Optional
+from typing import List, Optional
 
 from .config_loader import WhitespaceFriendlyConfigParser
 
@@ -77,6 +77,7 @@ class NotificationService:
         user: Optional[str] = None,
         is_automated: bool = False,
         show_title_en: Optional[str] = None,
+        sources: Optional[List[str]] = None,
     ):
         """Send notification when an episode is posted.
 
@@ -87,6 +88,8 @@ class NotificationService:
             user: Username who triggered the post (None for automated)
             is_automated: True if posted by scheduled scanner
             show_title_en: English title of the show, if known
+            sources: Scanner(s) that found this episode (e.g. ["Nyaa", "Nekobt"]),
+                if it was triggered by a scan
         """
         if not self._is_discord_enabled():
             return
@@ -109,6 +112,8 @@ class NotificationService:
         }
         if user:
             embed["author"] = {"name": f"u/{user}"}
+        if sources:
+            embed["fields"] = [{"name": "Source", "value": ", ".join(sources), "inline": True}]
 
         notifier.send([embed])
 

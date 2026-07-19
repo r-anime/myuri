@@ -52,6 +52,30 @@ class SchedulerService:
             errors=nyaa_result.errors + nekobt_result.errors,
         )
 
+    def _store_scan_episodes(self, scan_history, scan_result):
+        """
+        Create one ScanEpisode row per (show, episode) found in scan_result.
+
+        When multiple scanners find the same episode, their sources are merged
+        into a single comma-separated `source` value on one row, rather than
+        creating a separate row per scanner.
+        """
+        from ..models import ScanEpisode
+
+        for (show_id, episode_number), group in scan_result.group_by_episode().items():
+            sources = sorted(set(found.source for found in group))
+            representative = group[0]
+            ScanEpisode.objects.create(
+                scan=scan_history,
+                show_id=show_id,
+                episode_number=str(episode_number),
+                source=", ".join(sources),
+                source_title=representative.source_title,
+                link=representative.link,
+                found_at=_make_aware(min(found.found_at for found in group)),
+                status="found"
+            )
+
     @property
     def auto_post_service(self):
         """Lazy-load AutoPostService to avoid requiring praw at import time."""
@@ -112,17 +136,7 @@ class SchedulerService:
             scan_history.save()
 
             # 4. Store found episodes as ScanEpisode records
-            for found in scan_result.episodes_found:
-                ScanEpisode.objects.create(
-                    scan=scan_history,
-                    show_id=found.show_id,
-                    episode_number=str(found.episode_number),
-                    source=found.source,
-                    source_title=found.source_title,
-                    link=found.link,
-                    found_at=_make_aware(found.found_at),
-                    status="found"
-                )
+            self._store_scan_episodes(scan_history, scan_result)
 
             # 5. Determine eligibility
             eligibilities = self.auto_post_service.determine_eligibility(scan_result)
@@ -208,7 +222,7 @@ class SchedulerService:
 
         Similar to run_scheduled_scan but with trigger_type="manual".
         """
-        from ..models import SchedulerConfig, ScanHistory, ScanEpisode, Show
+        from ..models import ScanHistory, Show
 
         logger.info("Starting manual scan...")
 
@@ -240,17 +254,7 @@ class SchedulerService:
             scan_history.save()
 
             # Store found episodes as ScanEpisode records
-            for found in scan_result.episodes_found:
-                ScanEpisode.objects.create(
-                    scan=scan_history,
-                    show_id=found.show_id,
-                    episode_number=str(found.episode_number),
-                    source=found.source,
-                    source_title=found.source_title,
-                    link=found.link,
-                    found_at=_make_aware(found.found_at),
-                    status="found"
-                )
+            self._store_scan_episodes(scan_history, scan_result)
 
             logger.info(
                 f"Manual scan completed: {scan_history.episodes_found} found "

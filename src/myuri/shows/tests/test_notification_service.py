@@ -91,6 +91,31 @@ class NotificationServiceTests(TestCase):
         )
         self.assertEqual(embed["color"], COLOR_CUSTOM)
 
+    def test_notify_episode_posted_with_sources(self):
+        self.service.notify_episode_posted(
+            show_title="Test Show",
+            episode="5",
+            url="https://reddit.com/thread",
+            is_automated=True,
+            sources=["Nyaa", "Nekobt"],
+        )
+
+        embed = self._sent_embed()
+        self.assertEqual(
+            embed["fields"],
+            [{"name": "Source", "value": "Nyaa, Nekobt", "inline": True}],
+        )
+
+    def test_notify_episode_posted_without_sources_omits_field(self):
+        self.service.notify_episode_posted(
+            show_title="Test Show",
+            episode="5",
+            url="https://reddit.com/thread",
+        )
+
+        embed = self._sent_embed()
+        self.assertNotIn("fields", embed)
+
     def test_notify_custom_episode_posted(self):
         self.service.notify_custom_episode_posted(
             show_title="Test Show",
