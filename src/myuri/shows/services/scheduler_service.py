@@ -3,6 +3,8 @@ import logging
 
 from django.utils import timezone
 
+from .scan_result import ScanResult
+
 logger = logging.getLogger(__name__)
 
 
@@ -20,6 +22,7 @@ class SchedulerService:
 
     def __init__(self):
         self._scanner = None
+        self._nekobt_scanner = None
         self._auto_post_service = None
 
     @property
@@ -29,6 +32,25 @@ class SchedulerService:
             from .nyaa_scanner import NyaaScanner
             self._scanner = NyaaScanner()
         return self._scanner
+
+    @property
+    def nekobt_scanner(self):
+        """Lazy-load NekobtScanner to avoid requiring feedparser at import time."""
+        if self._nekobt_scanner is None:
+            from .nekobt_scanner import NekobtScanner
+            self._nekobt_scanner = NekobtScanner()
+        return self._nekobt_scanner
+
+    def _scan_all_sources(self, enabled_shows):
+        """Run every wired-in scanner against enabled_shows and merge into one ScanResult."""
+        nyaa_result = self.scanner.scan_recent(enabled_shows)
+        nekobt_result = self.nekobt_scanner.scan_recent(enabled_shows)
+        return ScanResult(
+            scan_time=nyaa_result.scan_time,
+            episodes_found=nyaa_result.episodes_found + nekobt_result.episodes_found,
+            shows_scanned=nyaa_result.shows_scanned,
+            errors=nyaa_result.errors + nekobt_result.errors,
+        )
 
     @property
     def auto_post_service(self):
@@ -45,7 +67,7 @@ class SchedulerService:
         Steps:
         1. Check if scheduler is enabled via SchedulerConfig
         2. Create ScanHistory record
-        3. Run NyaaScanner.scan_recent()
+        3. Run NyaaScanner and NekobtScanner scan_recent(), merged into one ScanResult
         4. Store found episodes as ScanEpisode records
         5. Run AutoPostService to determine eligibility and post
         6. Update ScanEpisode statuses and ScanHistory counts
@@ -81,7 +103,7 @@ class SchedulerService:
                 config.save()
                 return scan_history
 
-            scan_result = self.scanner.scan_recent(enabled_shows)
+            scan_result = self._scan_all_sources(enabled_shows)
 
             # Update scan history with basic stats
             scan_history.shows_scanned = scan_result.shows_scanned
@@ -208,7 +230,7 @@ class SchedulerService:
                 scan_history.save()
                 return scan_history
 
-            scan_result = self.scanner.scan_recent(enabled_shows)
+            scan_result = self._scan_all_sources(enabled_shows)
 
             # Update scan history with basic stats
             scan_history.shows_scanned = scan_result.shows_scanned

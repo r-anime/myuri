@@ -628,8 +628,8 @@ def scan_page(request):
 @admin_required
 @require_POST
 def trigger_scan(request):
-    """Trigger a scan for new episodes from Nyaa.si and Crunchyroll."""
-    from .services import NyaaScanner, CrunchyrollScanner
+    """Trigger a scan for new episodes from Nyaa.si, Crunchyroll, and Nekobt."""
+    from .services import NyaaScanner, CrunchyrollScanner, NekobtScanner
     from .services.scan_result import ScanResult
 
     # Get enabled shows
@@ -642,14 +642,15 @@ def trigger_scan(request):
         }, status=400)
 
     try:
-        nyaa_result = NyaaScanner().scan_recent(enabled_shows)
-        cr_result   = CrunchyrollScanner().scan_recent(enabled_shows)
+        nyaa_result   = NyaaScanner().scan_recent(enabled_shows)
+        cr_result     = CrunchyrollScanner().scan_recent(enabled_shows)
+        nekobt_result = NekobtScanner().scan_recent(enabled_shows)
 
         result = ScanResult(
             scan_time=nyaa_result.scan_time,
-            episodes_found=nyaa_result.episodes_found + cr_result.episodes_found,
+            episodes_found=nyaa_result.episodes_found + cr_result.episodes_found + nekobt_result.episodes_found,
             shows_scanned=nyaa_result.shows_scanned,
-            errors=nyaa_result.errors + cr_result.errors,
+            errors=nyaa_result.errors + cr_result.errors + nekobt_result.errors,
         )
 
         # Store results in session
@@ -680,14 +681,21 @@ def scan_individual_show(request, show_id):
 
     Returns episodes found for that show without touching the session, so
     the frontend can call this per-show and accumulate results itself.
+
+    NOTE: Nyaa scanning is temporarily disabled (see below).
     """
-    from .services.nyaa_specific import NyaaSpecificScanner
+    from datetime import datetime
+
+    from .services.scan_result import ScanResult
 
     show = get_object_or_404(Show, id=show_id, enabled=True)
 
     try:
-        scanner = NyaaSpecificScanner()
-        result = scanner.scan_show(show, max_age_days=7)
+        # TEMPORARILY DISABLED: restore these two lines (and drop the empty
+        # ScanResult below) to re-enable.
+        # scanner = NyaaSpecificScanner()
+        # result = scanner.scan_show(show, max_age_days=7)
+        result = ScanResult(scan_time=datetime.now(), shows_scanned=1)
 
         return JsonResponse({
             "success": True,
