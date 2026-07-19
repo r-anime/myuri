@@ -34,6 +34,7 @@ class NyaaScannerTests(TestCase):
         cls.show_dungeon    = Show.objects.create(title="Dungeon Meshi",     title_en="",             aliases="Delicious in Dungeon\nMeshi",  has_source=False, season=cls.season)
         cls.show_kimetsu    = Show.objects.create(title="Kimetsu no Yaiba",  title_en="Demon Slayer", aliases="",                             has_source=False, season=cls.season)
         cls.show_rezero     = Show.objects.create(title="Re:Zero",           title_en="",             aliases="",                             has_source=False, season=cls.season)
+        cls.show_pokemon    = Show.objects.create(title="Pokémon",           title_en="",             aliases="",                             has_source=False, season=cls.season)
 
     def _make_show(self, **kwargs):
         defaults = dict(
@@ -181,6 +182,24 @@ class NyaaScannerTests(TestCase):
                 self.assertEqual(scanner._normalize_name(value), expected)
 
     # ------------------------------------------------------------------
+    # _strip_accents  (parameterized)
+    # ------------------------------------------------------------------
+
+    def test_strip_accents(self):
+        scanner = NyaaScanner()
+        cases = [
+            # (input,      expected,   description)
+            ("Pokémon",    "Pokemon",  "folds acute e"),
+            ("Café",       "Cafe",     "folds acute e at end of word"),
+            ("Otome Kaijuu Caraméliser","Otome Kaijuu Carameliser",     "folds acute e at end of word"),
+            ("Frieren",    "Frieren",  "plain ASCII passthrough"),
+            ("",           "",         "empty string"),
+        ]
+        for value, expected, description in cases:
+            with self.subTest(description):
+                self.assertEqual(scanner._strip_accents(value), expected)
+
+    # ------------------------------------------------------------------
     # _extract_episode_number  (parameterized)
     # ------------------------------------------------------------------
 
@@ -260,6 +279,7 @@ class NyaaScannerTests(TestCase):
             self.show_dungeon,   # title="Dungeon Meshi", aliases="Delicious in Dungeon", "Meshi"
             self.show_kimetsu,   # title="Kimetsu no Yaiba", title_en="Demon Slayer"
             self.show_rezero,    # title="Re:Zero"
+            self.show_pokemon,   # title="Pokémon"
         ]
 
         cases = [
@@ -314,6 +334,16 @@ class NyaaScannerTests(TestCase):
                 {self.show_frieren.id},
                 "case-insensitive match",
             ),
+            (
+                "[SubsPlease] Pokemon - 05 [1080p]",
+                {self.show_pokemon.id},
+                "accent-insensitive match: unaccented torrent title matches accented show title (Pokémon)",
+            ),
+            (
+                "[SubsPlease] Pokémon - 06 [1080p]",
+                {self.show_pokemon.id},
+                "accent-preserving match still works: accented torrent title matches accented show title",
+            ),
         ]
 
         for torrent_title, expected_ids, description in cases:
@@ -322,6 +352,15 @@ class NyaaScannerTests(TestCase):
                 matched = scanner._find_matching_shows(torrent, all_shows)
                 self.assertEqual({s.id for s in matched}, expected_ids)
 
+    def test_find_matching_shows_accent_insensitive_reverse(self):
+        """An accented torrent title matches an unaccented show title/alias (reverse direction)."""
+        show = self._make_show(title="Pokemon")
+        scanner = NyaaScanner()
+        torrent = {"title": "[SubsPlease] Pokémon - 07 [1080p]"}
+
+        matched = scanner._find_matching_shows(torrent, [show])
+
+        self.assertEqual({s.id for s in matched}, {show.id})
 
     def test_fetch_recent_torrents(self):
         """
