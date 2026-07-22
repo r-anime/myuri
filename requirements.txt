@@ -4,5 +4,5 @@ django==6.0
 django-allauth==65.3.0
 django-apscheduler>=0.6.2
 pyyaml==6.0.2
-feedparser>=6.0.0
+feedparser>=6.0.12
 pytest-django>=4.5.0
