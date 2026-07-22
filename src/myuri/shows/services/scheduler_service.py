@@ -3,6 +3,8 @@ import logging
 
 from django.utils import timezone
 
+from .scan_result import ScanResult
+
 logger = logging.getLogger(__name__)
 
 
@@ -20,6 +22,8 @@ class SchedulerService:
 
     def __init__(self):
         self._scanner = None
+        self._nekobt_scanner = None
+        self._crunchyroll_scanner = None
         self._auto_post_service = None
 
     @property
@@ -29,6 +33,58 @@ class SchedulerService:
             from .nyaa_scanner import NyaaScanner
             self._scanner = NyaaScanner()
         return self._scanner
+
+    @property
+    def nekobt_scanner(self):
+        """Lazy-load NekobtScanner to avoid requiring feedparser at import time."""
+        if self._nekobt_scanner is None:
+            from .nekobt_scanner import NekobtScanner
+            self._nekobt_scanner = NekobtScanner()
+        return self._nekobt_scanner
+
+    @property
+    def crunchyroll_scanner(self):
+        """Lazy-load CrunchyrollScanner to avoid requiring requests at import time."""
+        if self._crunchyroll_scanner is None:
+            from .crunchyroll_scanner import CrunchyrollScanner
+            self._crunchyroll_scanner = CrunchyrollScanner()
+        return self._crunchyroll_scanner
+
+    def _scan_all_sources(self, enabled_shows):
+        """Run every wired-in scanner against enabled_shows and merge into one ScanResult."""
+        nyaa_result = self.scanner.scan_recent(enabled_shows)
+        nekobt_result = self.nekobt_scanner.scan_recent(enabled_shows)
+        cr_result = self.crunchyroll_scanner.scan_recent(enabled_shows)
+        return ScanResult(
+            scan_time=nyaa_result.scan_time,
+            episodes_found=nyaa_result.episodes_found + nekobt_result.episodes_found + cr_result.episodes_found,
+            shows_scanned=nyaa_result.shows_scanned,
+            errors=nyaa_result.errors + nekobt_result.errors + cr_result.errors,
+        )
+
+    def _store_scan_episodes(self, scan_history, scan_result):
+        """
+        Create one ScanEpisode row per (show, episode) found in scan_result.
+
+        When multiple scanners find the same episode, their sources are merged
+        into a single comma-separated `source` value on one row, rather than
+        creating a separate row per scanner.
+        """
+        from ..models import ScanEpisode
+
+        for (show_id, episode_number), group in scan_result.group_by_episode().items():
+            sources = sorted(set(found.source for found in group))
+            representative = group[0]
+            ScanEpisode.objects.create(
+                scan=scan_history,
+                show_id=show_id,
+                episode_number=str(episode_number),
+                source=", ".join(sources),
+                source_title=representative.source_title,
+                link=representative.link,
+                found_at=_make_aware(min(found.found_at for found in group)),
+                status="found"
+            )
 
     @property
     def auto_post_service(self):
@@ -45,7 +101,7 @@ class SchedulerService:
         Steps:
         1. Check if scheduler is enabled via SchedulerConfig
         2. Create ScanHistory record
-        3. Run NyaaScanner.scan_recent()
+        3. Run NyaaScanner, NekobtScanner, and CrunchyrollScanner scan_recent(), merged into one ScanResult
         4. Store found episodes as ScanEpisode records
         5. Run AutoPostService to determine eligibility and post
         6. Update ScanEpisode statuses and ScanHistory counts
@@ -81,7 +137,7 @@ class SchedulerService:
                 config.save()
                 return scan_history
 
-            scan_result = self.scanner.scan_recent(enabled_shows)
+            scan_result = self._scan_all_sources(enabled_shows)
 
             # Update scan history with basic stats
             scan_history.shows_scanned = scan_result.shows_scanned
@@ -90,17 +146,7 @@ class SchedulerService:
             scan_history.save()
 
             # 4. Store found episodes as ScanEpisode records
-            for found in scan_result.episodes_found:
-                ScanEpisode.objects.create(
-                    scan=scan_history,
-                    show_id=found.show_id,
-                    episode_number=str(found.episode_number),
-                    source=found.source,
-                    source_title=found.source_title,
-                    link=found.link,
-                    found_at=_make_aware(found.found_at),
-                    status="found"
-                )
+            self._store_scan_episodes(scan_history, scan_result)
 
             # 5. Determine eligibility
             eligibilities = self.auto_post_service.determine_eligibility(scan_result)
@@ -186,7 +232,7 @@ class SchedulerService:
 
         Similar to run_scheduled_scan but with trigger_type="manual".
         """
-        from ..models import SchedulerConfig, ScanHistory, ScanEpisode, Show
+        from ..models import ScanHistory, Show
 
         logger.info("Starting manual scan...")
 
@@ -208,7 +254,7 @@ class SchedulerService:
                 scan_history.save()
                 return scan_history
 
-            scan_result = self.scanner.scan_recent(enabled_shows)
+            scan_result = self._scan_all_sources(enabled_shows)
 
             # Update scan history with basic stats
             scan_history.shows_scanned = scan_result.shows_scanned
@@ -218,17 +264,7 @@ class SchedulerService:
             scan_history.save()
 
             # Store found episodes as ScanEpisode records
-            for found in scan_result.episodes_found:
-                ScanEpisode.objects.create(
-                    scan=scan_history,
-                    show_id=found.show_id,
-                    episode_number=str(found.episode_number),
-                    source=found.source,
-                    source_title=found.source_title,
-                    link=found.link,
-                    found_at=_make_aware(found.found_at),
-                    status="found"
-                )
+            self._store_scan_episodes(scan_history, scan_result)
 
             logger.info(
                 f"Manual scan completed: {scan_history.episodes_found} found "

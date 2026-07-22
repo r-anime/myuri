@@ -1,5 +1,5 @@
 """Service for automatically posting eligible episodes after scanning."""
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import List, Optional
 
 from .scan_result import ScanResult
@@ -14,6 +14,7 @@ class EpisodeEligibility:
     latest_db_episode: Optional[str]  # None if no episodes exist
     is_eligible: bool
     reason: str  # "ready_to_post", "not_next_episode", "already_posted", etc.
+    sources: List[str] = field(default_factory=list)  # e.g. ["Nyaa", "Nekobt"]
 
 
 @dataclass
@@ -60,25 +61,23 @@ class AutoPostService:
         from ..models import Show
 
         eligibilities = []
-        seen = set()
         # Tracks the highest episode number marked eligible per show in this run,
         # so that subsequent episodes in the same scan are evaluated against it
         # rather than the stale DB state.
         pending_latest: dict = {}  # {show_id: episode_number}
 
-        # Sort by episode number so lower-numbered episodes are always evaluated
+        # Group by (show_id, episode_number) so that when multiple scanners find
+        # the same episode, they collapse into a single eligibility check whose
+        # `sources` lists every contributing scanner, instead of one entry per
+        # scanner. Sort by key so lower-numbered episodes are always evaluated
         # first; this ensures correct order assignment when multiple episodes for
         # the same show appear in a single scan.
-        sorted_episodes = sorted(
-            scan_result.episodes_found,
-            key=lambda f: (f.show_id, f.episode_number),
-        )
+        groups = scan_result.group_by_episode()
 
-        for found in sorted_episodes:
-            key = (found.show_id, found.episode_number)
-            if key in seen:
-                continue
-            seen.add(key)
+        for key in sorted(groups.keys()):
+            group = groups[key]
+            found = group[0]
+            sources = sorted(set(f.source for f in group))
             try:
                 show = Show.objects.get(id=found.show_id)
             except Show.DoesNotExist:
@@ -102,6 +101,7 @@ class AutoPostService:
                         latest_db_episode=latest.number,
                         is_eligible=False,
                         reason=f"non_numeric_latest (latest is '{latest.number}')",
+                        sources=sources,
                     ))
                     continue
 
@@ -136,6 +136,7 @@ class AutoPostService:
                 latest_db_episode=latest_str,
                 is_eligible=is_eligible,
                 reason=reason,
+                sources=sources,
             ))
 
         return eligibilities
@@ -204,6 +205,7 @@ class AutoPostService:
                     url=result["url"],
                     is_automated=True,
                     show_title_en=show.title_en or None,
+                    sources=eligible_episode.sources,
                 )
 
             except Exception as e:

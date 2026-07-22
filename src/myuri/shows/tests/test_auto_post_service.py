@@ -15,12 +15,12 @@ def _make_scan_result(*found_episodes):
     )
 
 
-def _found(show, episode_number):
+def _found(show, episode_number, source="Nyaa"):
     return FoundEpisode(
         show_id=show.id,
         show_title=show.title,
         episode_number=episode_number,
-        source="Nyaa",
+        source=source,
         source_title=f"[Sub] {show.title} - {episode_number:02d} [1080p].mkv",
         found_at=datetime.now(),
         link=f"https://nyaa.si/view/{episode_number}",
@@ -151,3 +151,43 @@ class DetermineEligibilityTests(TestCase):
 
         self.assertEqual(len(result), 1)
         self.assertTrue(result[0].is_eligible)
+        self.assertEqual(result[0].sources, ["Nyaa"])
+
+    # ------------------------------------------------------------------
+    # sources aggregation (multiple scanners finding the same episode)
+    # ------------------------------------------------------------------
+
+    def test_sources_lists_the_single_contributing_scanner(self):
+        service = AutoPostService()
+        result = service.determine_eligibility(
+            _make_scan_result(_found(self.show, 1, source="Nekobt"))
+        )
+
+        self.assertEqual(result[0].sources, ["Nekobt"])
+
+    def test_sources_merged_when_multiple_scanners_find_same_episode(self):
+        service = AutoPostService()
+        result = service.determine_eligibility(
+            _make_scan_result(
+                _found(self.show, 1, source="Nekobt"),
+                _found(self.show, 1, source="Nyaa"),
+            )
+        )
+
+        self.assertEqual(len(result), 1)
+        self.assertTrue(result[0].is_eligible)
+        self.assertEqual(result[0].sources, ["Nekobt", "Nyaa"])
+
+    def test_sources_kept_separate_per_episode(self):
+        service = AutoPostService()
+        result = service.determine_eligibility(
+            _make_scan_result(
+                _found(self.show, 1, source="Nyaa"),
+                _found(self.show, 2, source="Nekobt"),
+            )
+        )
+
+        ep1 = next(r for r in result if r.scanned_episode == 1)
+        ep2 = next(r for r in result if r.scanned_episode == 2)
+        self.assertEqual(ep1.sources, ["Nyaa"])
+        self.assertEqual(ep2.sources, ["Nekobt"])
