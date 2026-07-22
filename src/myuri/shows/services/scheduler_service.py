@@ -23,6 +23,7 @@ class SchedulerService:
     def __init__(self):
         self._scanner = None
         self._nekobt_scanner = None
+        self._crunchyroll_scanner = None
         self._auto_post_service = None
 
     @property
@@ -41,15 +42,24 @@ class SchedulerService:
             self._nekobt_scanner = NekobtScanner()
         return self._nekobt_scanner
 
+    @property
+    def crunchyroll_scanner(self):
+        """Lazy-load CrunchyrollScanner to avoid requiring requests at import time."""
+        if self._crunchyroll_scanner is None:
+            from .crunchyroll_scanner import CrunchyrollScanner
+            self._crunchyroll_scanner = CrunchyrollScanner()
+        return self._crunchyroll_scanner
+
     def _scan_all_sources(self, enabled_shows):
         """Run every wired-in scanner against enabled_shows and merge into one ScanResult."""
         nyaa_result = self.scanner.scan_recent(enabled_shows)
         nekobt_result = self.nekobt_scanner.scan_recent(enabled_shows)
+        cr_result = self.crunchyroll_scanner.scan_recent(enabled_shows)
         return ScanResult(
             scan_time=nyaa_result.scan_time,
-            episodes_found=nyaa_result.episodes_found + nekobt_result.episodes_found,
+            episodes_found=nyaa_result.episodes_found + nekobt_result.episodes_found + cr_result.episodes_found,
             shows_scanned=nyaa_result.shows_scanned,
-            errors=nyaa_result.errors + nekobt_result.errors,
+            errors=nyaa_result.errors + nekobt_result.errors + cr_result.errors,
         )
 
     def _store_scan_episodes(self, scan_history, scan_result):
@@ -91,7 +101,7 @@ class SchedulerService:
         Steps:
         1. Check if scheduler is enabled via SchedulerConfig
         2. Create ScanHistory record
-        3. Run NyaaScanner and NekobtScanner scan_recent(), merged into one ScanResult
+        3. Run NyaaScanner, NekobtScanner, and CrunchyrollScanner scan_recent(), merged into one ScanResult
         4. Store found episodes as ScanEpisode records
         5. Run AutoPostService to determine eligibility and post
         6. Update ScanEpisode statuses and ScanHistory counts
