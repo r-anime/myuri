@@ -20,7 +20,9 @@ def admin_required(view_func):
         if not request.user.is_staff:
             return render(request, 'no_permission.html', {'username': request.user.username})
         return view_func(request, *args, **kwargs)
+
     return wrapper
+
 
 from .models import Show, Episode, Season, LinkType, ShowLink
 
@@ -80,9 +82,9 @@ def shows_list(request, show_id=None):
     latest_date_map = {
         row['show_id']: row['latest_air']
         for row in Episode.objects
-            .filter(show__in=shows_qs, discussion_url__gt='', air_date__isnull=False)
-            .values('show_id')
-            .annotate(latest_air=Max('air_date'))
+        .filter(show__in=shows_qs, discussion_url__gt='', air_date__isnull=False)
+        .values('show_id')
+        .annotate(latest_air=Max('air_date'))
     }
 
     now = timezone.now()
@@ -365,7 +367,6 @@ def season_config_manage(request):
         get_season_config_files,
         import_shows_to_database,
         delete_season_shows,
-        parse_season_from_filename,
     )
 
     # Get config directory path (relative to src/)
@@ -642,8 +643,8 @@ def trigger_scan(request):
         }, status=400)
 
     try:
-        nyaa_result   = NyaaScanner().scan_recent(enabled_shows)
-        cr_result     = CrunchyrollScanner().scan_recent(enabled_shows)
+        nyaa_result = NyaaScanner().scan_recent(enabled_shows)
+        cr_result = CrunchyrollScanner().scan_recent(enabled_shows)
         nekobt_result = NekobtScanner().scan_recent(enabled_shows)
 
         result = ScanResult(
@@ -681,28 +682,30 @@ def scan_individual_show(request, show_id):
 
     Returns episodes found for that show without touching the session, so
     the frontend can call this per-show and accumulate results itself.
-
-    NOTE: Nyaa scanning is temporarily disabled (see below).
     """
-    from datetime import datetime
-
+    from .services.nyaa_specific import NyaaSpecificScanner
+    from .services.nekobt_scanner import NekobtScanner
     from .services.scan_result import ScanResult
 
     show = get_object_or_404(Show, id=show_id, enabled=True)
 
     try:
-        # TEMPORARILY DISABLED: restore these two lines (and drop the empty
-        # ScanResult below) to re-enable.
-        # scanner = NyaaSpecificScanner()
-        # result = scanner.scan_show(show, max_age_days=7)
-        result = ScanResult(scan_time=datetime.now(), shows_scanned=1)
+        nyaa_result = NyaaSpecificScanner().scan_show(show, max_age_days=7)
+        nekobt_result = NekobtScanner().scan_recent([show], max_age_days=7)
+
+        combined = ScanResult(
+            scan_time=nyaa_result.scan_time,
+            episodes_found=nyaa_result.episodes_found + nekobt_result.episodes_found,
+            shows_scanned=1,
+            errors=nyaa_result.errors + nekobt_result.errors,
+        )
 
         return JsonResponse({
             "success": True,
             "show_id": show.id,
             "show_title": show.title,
-            "episodes_found": result.to_dict()["episodes_found"],
-            "errors": result.errors,
+            "episodes_found": combined.to_dict()["episodes_found"],
+            "errors": combined.errors,
         })
 
     except Exception as e:
@@ -834,7 +837,6 @@ def auto_post_episodes(request):
     - Exactly latest_episode + 1 for shows with existing episodes
     """
     from .services import ScanResult, AutoPostService
-    from dataclasses import asdict
 
     # Get scan results from session
     last_scan_data = request.session.get("last_scan_result")
@@ -1162,7 +1164,8 @@ def add_show_link(request, show_id):
 
     link_type = get_object_or_404(LinkType, id=link_type_id)
     if ShowLink.objects.filter(show=show, link_type=link_type).exists():
-        return JsonResponse({"success": False, "error": f"{link_type.name} link already exists for this show"}, status=400)
+        return JsonResponse({"success": False, "error": f"{link_type.name} link already exists for this show"},
+                            status=400)
 
     link = ShowLink.objects.create(show=show, link_type=link_type, url=url)
     return JsonResponse({
