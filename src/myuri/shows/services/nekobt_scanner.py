@@ -14,6 +14,7 @@ class NekobtScanner:
 
     # fansub_lang/sub_lang restrict results to English-subbed releases; uploader_id
     # scopes the feed to a single trusted uploader account.
+    # Restricted to the ToonsHub user uploads
     _recent_url = (
         "https://nekobt.to/api/torznab/api"
         "?t=search&fansub_lang=en&sub_lang=en&uploader_id=7251460167698"
