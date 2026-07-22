@@ -55,6 +55,10 @@ class RedditService:
             self._templates = load_post_templates()
         return self._templates
 
+    def _short_url(self, submission) -> str:
+        """Build the short-form discussion URL (Reddit resolves it without the title slug)."""
+        return f"https://www.reddit.com/r/{self.subreddit}/comments/{submission.id}/"
+
     def submit_episode_post(self, show, episode_number: str, is_final: bool = False) -> dict:
         """Submit an episode discussion post to Reddit.
 
@@ -79,11 +83,13 @@ class RedditService:
             flair_text=self.templates.flair_text or None,
         )
 
+        short_url = self._short_url(submission)
+
         # Edit the post to include itself in the discussions table
         updated_body = self._build_post_body(
             show,
             episode_number,
-            current_episode_url=submission.url,
+            current_episode_url=short_url,
             current_episode_number=episode_number,
         )
         submission.edit(updated_body)
@@ -91,12 +97,12 @@ class RedditService:
         # Update previous episode threads with latest show info and discussions
         updated_count = self._update_previous_episodes(
             show,
-            new_episode_url=submission.url,
+            new_episode_url=short_url,
             new_episode_number=episode_number,
         )
 
         return {
-            "url": submission.url,
+            "url": short_url,
             "id": submission.id,
             "updated_count": updated_count,
         }
@@ -135,7 +141,8 @@ class RedditService:
             flair_id=self.templates.flair_id or None,
             flair_text=self.templates.flair_text or None,
         )
-        logger.info(f"Posted megathread: {megathread_submission.url}")
+        megathread_short_url = self._short_url(megathread_submission)
+        logger.info(f"Posted megathread: {megathread_short_url}")
 
         # Phase 2: Post all episodes (without complete discussions table)
         for ep_num in range(start_episode, end_episode + 1):
@@ -151,12 +158,13 @@ class RedditService:
                 flair_id=self.templates.flair_id or None,
                 flair_text=self.templates.flair_text or None,
             )
-            batch_episodes.append((ep_num, submission.url, submission))
-            logger.info(f"Posted episode {ep_num}: {submission.url}")
+            short_url = self._short_url(submission)
+            batch_episodes.append((ep_num, short_url, submission))
+            logger.info(f"Posted episode {ep_num}: {short_url}")
 
         # Phase 3: Build complete list including megathread for discussions table
         # Megathread comes first, then individual episodes
-        batch_episode_list = [(megathread_number, megathread_submission.url)]
+        batch_episode_list = [(megathread_number, megathread_short_url)]
         batch_episode_list.extend([(str(ep_num), url) for ep_num, url, _ in batch_episodes])
 
         # Phase 4: Edit all batch episodes to include complete discussions table
@@ -182,7 +190,7 @@ class RedditService:
         # Phase 6: Update previous episode threads (up to MAX_EPISODES_TO_UPDATE)
         # Exclude all batch episodes and megathread from the update list
         batch_urls = {url for _, url, _ in batch_episodes}
-        batch_urls.add(megathread_submission.url)
+        batch_urls.add(megathread_short_url)
         updated_count = self._update_previous_episodes_batch(
             show,
             batch_urls=batch_urls,
@@ -192,7 +200,7 @@ class RedditService:
         return {
             "episodes": [(ep_num, url) for ep_num, url, _ in batch_episodes],
             "episodes_posted": len(batch_episodes),
-            "megathread": (megathread_number, megathread_submission.url),
+            "megathread": (megathread_number, megathread_short_url),
             "updated_count": updated_count,
         }
 
@@ -666,7 +674,7 @@ class RedditService:
         )
 
         return {
-            "url": submission.url,
+            "url": self._short_url(submission),
             "id": submission.id,
         }
 
