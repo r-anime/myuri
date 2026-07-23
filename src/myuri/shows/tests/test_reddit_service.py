@@ -1,3 +1,4 @@
+import re
 from types import SimpleNamespace
 
 from django.test import TestCase
@@ -237,3 +238,124 @@ class BuildPostBodyTests(TestCase):
         body = svc._build_post_body(show, "1")
 
         self.assertIn("* [/r/Frieren](https://www.reddit.com/r/Frieren)", body)
+
+
+# ---------------------------------------------------------------------------
+# _format_discussions chunking tests (row cap / column wrap / episode cap)
+# ---------------------------------------------------------------------------
+class FormatDiscussionsChunkingTests(TestCase):
+    @classmethod
+    def setUpTestData(cls):
+        cls.season = Season.objects.create(year=2026, season="winter")
+
+    def _make_show(self, **kwargs):
+        defaults = dict(
+            title="Sousou no Frieren",
+            title_en="",
+            aliases="",
+            has_source=False,
+            season=self.season,
+        )
+        defaults.update(kwargs)
+        return Show.objects.create(**defaults)
+
+    def _add_episodes(self, show, count, start=1):
+        for i in range(start, start + count):
+            Episode.objects.create(
+                show=show, number=str(i), order=i,
+                discussion_url=f"https://reddit.com/r/anime/comments/ep{i}/",
+            )
+
+    def test_under_row_cap_single_column_no_blank_lines(self):
+        svc = _make_service(_default_templates())
+        show = self._make_show()
+        self._add_episodes(show, 5)
+
+        result = svc._format_discussions(show)
+        lines = result.split("\n")
+
+        self.assertEqual(lines[0], "Episode|Link|Score")
+        self.assertEqual(lines[1], ":-:|:-:|:-:")
+        self.assertEqual(len(lines), 2 + 5)
+        self.assertNotIn("", lines)
+
+    def test_exactly_at_row_cap_stays_single_column(self):
+        svc = _make_service(_default_templates())
+        show = self._make_show()
+        self._add_episodes(show, 13)
+
+        result = svc._format_discussions(show)
+        lines = result.split("\n")
+
+        self.assertEqual(lines[0], "Episode|Link|Score")
+        self.assertEqual(len(lines), 2 + 13)
+
+    def test_over_row_cap_wraps_into_two_columns(self):
+        svc = _make_service(_default_templates())
+        show = self._make_show()
+        self._add_episodes(show, 14)
+
+        result = svc._format_discussions(show)
+        lines = result.split("\n")
+
+        # Header/align repeated twice for 2 columns
+        self.assertEqual(lines[0], "Episode|Link|Score|Episode|Link|Score")
+        self.assertEqual(lines[1], ":-:|:-:|:-:|:-:|:-:|:-:")
+        # 13 body rows max (row cap), second column only has 1 entry (episode 14)
+        self.assertEqual(len(lines), 2 + 13)
+
+        first_body_row = lines[2]
+        # Column-major: row 1 has episode 1 (col 1) and episode 14 (col 2)
+        self.assertTrue(first_body_row.startswith("1|[Link]"))
+        self.assertIn("14|[Link]", first_body_row)
+
+        last_body_row = lines[-1]
+        # Row 13 has episode 13 in column 1 only, no second column entry
+        self.assertTrue(last_body_row.startswith("13|[Link]"))
+        self.assertEqual(last_body_row.count("|[Link]"), 1)
+
+    def test_over_total_cap_drops_oldest_keeps_four_columns_max(self):
+        svc = _make_service(_default_templates())
+        show = self._make_show()
+        self._add_episodes(show, 60)
+
+        result = svc._format_discussions(show)
+        lines = result.split("\n")
+
+        # Max 4 columns (52 episode cap / 13 rows)
+        self.assertEqual(lines[0], "|".join(["Episode|Link|Score"] * 4))
+        self.assertEqual(len(lines), 2 + 13)
+
+        # Oldest 8 episodes (1-8) dropped; most recent 52 (9-60) kept
+        episode_numbers = {int(n) for n in re.findall(r"(\d+)\|\[Link\]", result)}
+        self.assertEqual(episode_numbers, set(range(9, 61)))
+
+    def test_current_episode_included_and_can_push_out_oldest(self):
+        svc = _make_service(_default_templates())
+        show = self._make_show()
+        self._add_episodes(show, 55)
+
+        result = svc._format_discussions(
+            show,
+            current_episode_url="https://reddit.com/r/anime/comments/current/",
+            current_episode_number="56",
+        )
+
+        self.assertIn("56|[Link](https://reddit.com/r/anime/comments/current/)", result)
+        # 55 existing + 1 current = 56 entries, cap 52 -> oldest 4 (episodes 1-4) dropped
+        episode_numbers = {int(n) for n in re.findall(r"(\d+)\|\[Link\]", result)}
+        self.assertEqual(episode_numbers, set(range(5, 57)))
+
+    def test_additional_episodes_included_in_reshape(self):
+        svc = _make_service(_default_templates())
+        show = self._make_show()
+        self._add_episodes(show, 3)
+
+        result = svc._format_discussions(
+            show,
+            additional_episodes=[("4", "https://reddit.com/r/anime/comments/batch4/")],
+        )
+
+        self.assertIn("4|[Link](https://reddit.com/r/anime/comments/batch4/)", result)
+        lines = result.split("\n")
+        self.assertEqual(len(lines), 2 + 4)

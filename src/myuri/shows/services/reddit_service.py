@@ -12,6 +12,13 @@ logger = logging.getLogger(__name__)
 # Maximum number of previous episodes to update when posting a new episode
 MAX_EPISODES_TO_UPDATE = 30
 
+# Discussion table caps (matches holo's _gen_text_discussions layout):
+# cap the table height at MAX_DISCUSSION_TABLE_ROWS rows, wrapping overflow
+# into additional side-by-side column-blocks, up to MAX_DISCUSSION_TABLE_COLUMNS.
+MAX_DISCUSSION_TABLE_ROWS = 13
+MAX_DISCUSSION_TABLE_COLUMNS = 4
+MAX_DISCUSSION_EPISODES = MAX_DISCUSSION_TABLE_ROWS * MAX_DISCUSSION_TABLE_COLUMNS
+
 
 class RedditService:
     """Service for interacting with Reddit API via PRAW."""
@@ -544,14 +551,17 @@ class RedditService:
             .order_by("order")
         )
 
-        # Check if we have any episodes (existing, current, or additional)
-        has_episodes = (
-            bool(episodes)
-            or (current_episode_url and current_episode_number)
-            or additional_episodes
-        )
+        # Combine all episode entries (existing, current, additional) into one
+        # ordered list, oldest first, before any capping/reshaping is applied.
+        entries = [(ep.number, ep.discussion_url) for ep in episodes]
 
-        if not has_episodes:
+        if current_episode_url and current_episode_number:
+            entries.append((current_episode_number, current_episode_url))
+
+        if additional_episodes:
+            entries.extend(additional_episodes)
+
+        if not entries:
             return self.templates.formats.get("discussion_none", "*No discussions yet!*")
 
         # Build table header
@@ -560,37 +570,31 @@ class RedditService:
         #  TODO: handle poll links and scores
         row_template = self.templates.formats.get("discussion", "{episode}|[Link]({link})|[{score}]({poll_link})")
 
-        lines = [header, align]
+        # Cap to the most recent MAX_DISCUSSION_EPISODES entries (drop oldest)
+        # so the table never grows unboundedly for long-running shows.
+        if len(entries) > MAX_DISCUSSION_EPISODES:
+            entries = entries[-MAX_DISCUSSION_EPISODES:]
 
-        # Add existing episodes from database
-        for ep in episodes:
-            lines.append(row_template.format(
-                episode=ep.number,
-                link=ep.discussion_url,
-                score="-",  # Score not implemented yet
-                poll_link="",  # Poll not implemented yet
-            ))
+        cells = [
+            row_template.format(episode=ep_number, link=ep_url, score="-", poll_link="")
+            for ep_number, ep_url in entries
+        ]
 
-        # Add current episode if provided (single post mode)
-        if current_episode_url and current_episode_number:
-            lines.append(row_template.format(
-                episode=current_episode_number,
-                link=current_episode_url,
-                score="-",
-                poll_link="",
-            ))
+        # Cap the table height at MAX_DISCUSSION_TABLE_ROWS, wrapping overflow
+        # into additional column-blocks side by side (column-major order).
+        num_columns = 1 + (len(cells) - 1) // MAX_DISCUSSION_TABLE_ROWS
+        header_row = "|".join([header] * num_columns)
+        align_row = "|".join([align] * num_columns)
+        body_rows = [
+            "|".join(row)
+            for row in (
+                cells[i::MAX_DISCUSSION_TABLE_ROWS]
+                for i in range(MAX_DISCUSSION_TABLE_ROWS)
+            )
+            if row
+        ]
 
-        # Add additional episodes if provided (batch mode)
-        if additional_episodes:
-            for ep_number, ep_url in additional_episodes:
-                lines.append(row_template.format(
-                    episode=ep_number,
-                    link=ep_url,
-                    score="-",
-                    poll_link="",
-                ))
-
-        return "\n".join(lines)
+        return "\n".join([header_row, align_row] + body_rows)
 
     def _format_aliases(self, show) -> str:
         """Format show aliases for the post body."""
