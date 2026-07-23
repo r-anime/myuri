@@ -1,4 +1,4 @@
-praw==7.8.1
+praw==8.0.2
 django==6.0.7
 django-allauth==65.18.0
 psycopg2-binary>=2.9.12
