@@ -159,6 +159,7 @@ class NekobtScanner:
         Converts to lowercase, removes special characters, and strips season info.
         """
         name = name.casefold()
+        name = re.sub("(?<=\w)['’](?=\w)", "", name)
         name = re.sub("[^a-z0-9]", " ", name)
         name = re.sub("_", " ", name)
         name = re.sub("season \\d( part \\d)?", " ", name)
