@@ -484,7 +484,6 @@ class RedditService:
             discussions=discussions,
         )
 
-        if show.title_en == JAADUGAR_TITLE_EN:
         return body
 
     def _format_streams(self, show) -> str:
