@@ -484,25 +484,7 @@ class RedditService:
             discussions=discussions,
         )
 
-        #TODO: HACK: One-off custom post body override for a single show
-        JAADUGAR_TITLE_EN = "Jaadugar: A Witch in Mongolia"
         if show.title_en == JAADUGAR_TITLE_EN:
-            # TODO: Append to the body with custom content for this one show
-            jaadugar = """
-
----
-
-# Notice: A Jaadugar-specific source material rules change:
-
-Several users expressed concern that comments discussing the historical basis of this series were spoiling potential events and/or the conclusion of the story.
-
-Given that the specific details of the Mongol Empire are less commonly-known worldwide, the moderation team voted that **any** discussion of the historical basis of this series must be enclosed within the subreddit's standard spoiler format. This includes all historical references which occur in the future of the airing episode.
-
-Historical discussion may still be included in regular comments and will **not** have to be restricted to the Source Material Corner.
-
-*Note that the implementation of this rule here is specific to Jaadugar and does not apply to other series, which we will decided on a case-specific basis.*"""
-
-            return body + jaadugar
         return body
 
     def _format_streams(self, show) -> str:
