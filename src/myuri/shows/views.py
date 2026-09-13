@@ -87,20 +87,31 @@ def shows_list(request, show_id=None):
         .annotate(latest_air=Max('air_date'))
     }
 
+    completed_count_map = {
+        row['id']: row['completed_episodes']
+        for row in shows_qs
+        .annotate(completed_episodes=Count('episodes', filter=Q(episodes__scheduled_for_removal=False)))
+        .values('id', 'completed_episodes')
+    }
+
     now = timezone.now()
     season_map = defaultdict(list)
     for show in shows_qs:
-        latest = latest_date_map.get(show.id)
-        if latest is None:
-            show.status_color = 'grey'
+        completed_count = completed_count_map.get(show.id, 0)
+        if show.episode_count is not None and completed_count >= show.episode_count:
+            show.status_color = 'purple'
         else:
-            days_ago = (now - latest).days
-            if days_ago < 7:
-                show.status_color = 'green'
-            elif days_ago < 14:
-                show.status_color = 'orange'
+            latest = latest_date_map.get(show.id)
+            if latest is None:
+                show.status_color = 'grey'
             else:
-                show.status_color = 'red'
+                days_ago = (now - latest).days
+                if days_ago < 7:
+                    show.status_color = 'green'
+                elif days_ago < 14:
+                    show.status_color = 'orange'
+                else:
+                    show.status_color = 'red'
         season_map[show.season].append(show)
 
     seasons_with_shows = sorted(
