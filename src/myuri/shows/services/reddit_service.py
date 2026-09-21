@@ -88,6 +88,7 @@ class RedditService:
             selftext=body,
             flair_id=self.templates.flair_id or None,
             flair_text=self.templates.flair_text or None,
+            send_replies=self._credentials.send_inbox_replies,
         )
 
         short_url = self._short_url(submission)
@@ -147,6 +148,7 @@ class RedditService:
             selftext=megathread_body,
             flair_id=self.templates.flair_id or None,
             flair_text=self.templates.flair_text or None,
+            send_replies=self._credentials.send_inbox_replies,
         )
         megathread_short_url = self._short_url(megathread_submission)
         logger.info(f"Posted megathread: {megathread_short_url}")
@@ -164,6 +166,7 @@ class RedditService:
                 selftext=body,
                 flair_id=self.templates.flair_id or None,
                 flair_text=self.templates.flair_text or None,
+                send_replies=self._credentials.send_inbox_replies,
             )
             short_url = self._short_url(submission)
             batch_episodes.append((ep_num, short_url, submission))
@@ -675,6 +678,7 @@ class RedditService:
             selftext=body,
             flair_id=self.templates.flair_id or None,
             flair_text=self.templates.flair_text or None,
+            send_replies=self._credentials.send_inbox_replies,
         )
 
         return {
