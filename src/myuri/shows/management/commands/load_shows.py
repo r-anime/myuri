@@ -98,6 +98,7 @@ class Command(BaseCommand):
                     "title_en": show_data.get("title_en", ""),
                     "aliases": "\n".join(show_data.get("aliases", [])),
                     "has_source": show_data.get("has_source", False),
+                    "disable_nyaa_trusted": show_data.get("disable_nyaa_trusted", False),
                     "enabled": show_data.get("enabled", True),
                     "franchise": franchise,
                 },
