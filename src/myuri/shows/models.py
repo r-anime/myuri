@@ -51,6 +51,10 @@ class Show(models.Model):
         default=False,
         help_text="Whether the anime has source material (manga, LN, etc.)"
     )
+    disable_nyaa_trusted = models.BooleanField(
+        default=False,
+        help_text="Allow non-trusted uploaders when scanning Nyaa for this show (for shows only released by smaller/bespoke fansubs)"
+    )
     enabled = models.BooleanField(
         default=True,
         help_text="Whether the show is active (disable when completed)"

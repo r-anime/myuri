@@ -16,6 +16,11 @@ class NyaaScanner:
     # f=2, the RSS feed only returns torrents from uploaders with Nyaa's "trusted" badge. Fansub groups and others without that badge are completely excluded.
     _recent_url = "https://{domain}/?page=rss&c=1_2&f={filter}"
 
+    # f=1 ("No remakes") is more forgiving than the default f=2: it allows uploads from
+    # non-trusted uploaders (needed for niche shows only picked up by small/bespoke fansub
+    # groups) while still excluding duplicate/remake re-uploads. Still restricted to c=1_2.
+    _untrusted_filter = "1"
+
     def __init__(self, domain: str = "nyaa.si", quality_filter: str = "2"):
         self.domain = domain
         self.quality_filter = quality_filter
@@ -24,6 +29,10 @@ class NyaaScanner:
         """
         Scan recent Nyaa torrents for episodes matching the given shows.
 
+        Shows with `disable_nyaa_trusted=True` are matched against a separate,
+        more permissive feed (non-trusted uploaders allowed) instead of the
+        default trusted-only feed.
+
         Args:
             shows: QuerySet or list of Show model instances
             max_age_days: Only consider torrents published within this many days
@@ -31,17 +40,27 @@ class NyaaScanner:
         Returns:
             ScanResult with found episodes
         """
-        result = ScanResult(
-            scan_time=datetime.now(),
-            shows_scanned=len(shows) if hasattr(shows, '__len__') else shows.count(),
-        )
+        shows = list(shows)
+        result = ScanResult(scan_time=datetime.now(), shows_scanned=len(shows))
 
+        trusted_shows = [s for s in shows if not s.disable_nyaa_trusted]
+        permissive_shows = [s for s in shows if s.disable_nyaa_trusted]
+
+        if trusted_shows:
+            self._scan_feed(self.quality_filter, trusted_shows, max_age_days, result)
+        if permissive_shows:
+            self._scan_feed(self._untrusted_filter, permissive_shows, max_age_days, result)
+
+        return result
+
+    def _scan_feed(self, quality_filter: str, shows, max_age_days: int, result: ScanResult) -> None:
+        """Fetch one RSS feed and append any matches against `shows` to `result`."""
         try:
-            torrents = self._fetch_recent_torrents()
+            torrents = self._fetch_recent_torrents(quality_filter)
         except Exception as e:
             logger.exception("Failed to fetch Nyaa RSS feed")
             result.errors.append(f"Failed to fetch RSS feed: {e}")
-            return result
+            return
 
         for torrent in torrents:
             # Skip if too old
@@ -73,9 +92,7 @@ class NyaaScanner:
                 )
                 result.episodes_found.append(found_episode)
 
-        return result
-
-    def _fetch_recent_torrents(self) -> list:
+    def _fetch_recent_torrents(self, quality_filter: Optional[str] = None) -> list:
         """Fetch recent torrents from Nyaa RSS feed."""
         try:
             import feedparser
@@ -87,7 +104,7 @@ class NyaaScanner:
 
         url = self._recent_url.format(
             domain=self.domain,
-            filter=self.quality_filter,
+            filter=quality_filter if quality_filter is not None else self.quality_filter,
         )
 
         feed = feedparser.parse(url)

@@ -1,6 +1,7 @@
 import logging
 import re
 from datetime import datetime
+from typing import Optional
 from urllib.parse import quote as url_quote
 
 from .nyaa_scanner import NyaaScanner
@@ -38,10 +39,11 @@ class NyaaSpecificScanner(NyaaScanner):
         result = ScanResult(scan_time=datetime.now(), shows_scanned=1)
 
         query = self._build_query(show.title)
+        quality_filter = self._untrusted_filter if show.disable_nyaa_trusted else self.quality_filter
         logger.info("Searching Nyaa specifically for: %s (query=%s)", show.title, query)
 
         try:
-            torrents = self._fetch_show_torrents(query)
+            torrents = self._fetch_show_torrents(query, quality_filter)
         except Exception as e:
             logger.exception("Failed to fetch Nyaa search feed for %s", show.title)
             result.errors.append(f"Failed to fetch RSS feed: {e}")
@@ -98,7 +100,7 @@ class NyaaSpecificScanner(NyaaScanner):
         query = re.sub(r"(?<=[^ ])-", " ", query)  # only strip mid-word hyphens
         return url_quote(query.strip(), safe="", errors="ignore")
 
-    def _fetch_show_torrents(self, query: str) -> list:
+    def _fetch_show_torrents(self, query: str, quality_filter: Optional[str] = None) -> list:
         """Fetch the Nyaa search RSS feed for an already-encoded query string."""
         try:
             import feedparser
@@ -110,7 +112,7 @@ class NyaaSpecificScanner(NyaaScanner):
 
         url = self._search_url.format(
             domain=self.domain,
-            filter=self.quality_filter,
+            filter=quality_filter if quality_filter is not None else self.quality_filter,
             q=query,
         )
 

@@ -490,6 +490,10 @@
         color: #4caf50;
     }
 
+    .disable-nyaa-trusted-yes {
+        color: #4caf50;
+    }
+
     .enabled-yes {
         color: #4caf50;
     }
@@ -762,6 +766,16 @@
                     </div>
                     <div class="show-info-row">
                         <div class="show-info-header">
+                            <span class="show-info-label">Disable Nyaa Trusted</span>
+                            <button class="info-edit-btn" id="edit-disable-nyaa-trusted-btn"
+                                    data-value="{{ selected_show.disable_nyaa_trusted|yesno:'true,false' }}">&#9998;</button>
+                        </div>
+                        <span class="show-info-value disable-nyaa-trusted-value {% if selected_show.disable_nyaa_trusted %}disable-nyaa-trusted-yes{% endif %}" id="show-disable-nyaa-trusted-display">
+                            {{ selected_show.disable_nyaa_trusted|yesno:"Yes,No" }}
+                        </span>
+                    </div>
+                    <div class="show-info-row">
+                        <div class="show-info-header">
                             <span class="show-info-label">Enabled</span>
                             <button class="info-edit-btn" id="edit-enabled-btn"
                                     data-value="{{ selected_show.enabled|yesno:'true,false' }}">&#9998;</button>
@@ -1021,6 +1035,30 @@ document.addEventListener('DOMContentLoaded', function() {
         const div = document.createElement('div');
         div.textContent = text;
         return div.innerHTML;
+    }
+
+    function bindBooleanToggle(btnId, endpoint, displayId, yesClass, dataKey, onUpdate) {
+        const btn = document.getElementById(btnId);
+        if (!btn) return;
+        btn.addEventListener('click', function() {
+            const infoList = document.querySelector('.show-info-list');
+            const showId = infoList.dataset.showId;
+            fetch(`/shows/${showId}/${endpoint}/`, {
+                method: 'POST',
+                headers: { 'X-CSRFToken': getCsrfToken(), 'Content-Type': 'application/json' },
+            })
+            .then(r => r.json())
+            .then(data => {
+                if (!data.success) { alert('Error: ' + data.error); return; }
+                const value = data[dataKey];
+                const display = document.getElementById(displayId);
+                display.textContent = value ? 'Yes' : 'No';
+                display.classList.toggle(yesClass, value);
+                btn.dataset.value = value ? 'true' : 'false';
+                if (onUpdate) onUpdate(value, showId);
+            })
+            .catch(err => alert('Error: ' + err.message));
+        });
     }
 
     // Fire Episode Batch functionality
@@ -1418,54 +1456,19 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     // Show Info — Has Source toggle
-    const editHasSourceBtn = document.getElementById('edit-has-source-btn');
-    if (editHasSourceBtn) {
-        editHasSourceBtn.addEventListener('click', function() {
-            const infoList = document.querySelector('.show-info-list');
-            const showId = infoList.dataset.showId;
-            fetch(`/shows/${showId}/update-has-source/`, {
-                method: 'POST',
-                headers: { 'X-CSRFToken': getCsrfToken(), 'Content-Type': 'application/json' },
-            })
-            .then(r => r.json())
-            .then(data => {
-                if (!data.success) { alert('Error: ' + data.error); return; }
-                const display = document.getElementById('show-has-source-display');
-                display.textContent = data.has_source ? 'Yes' : 'No';
-                display.classList.toggle('has-source-yes', data.has_source);
-                editHasSourceBtn.dataset.value = data.has_source ? 'true' : 'false';
-            })
-            .catch(err => alert('Error: ' + err.message));
-        });
-    }
+    bindBooleanToggle('edit-has-source-btn', 'update-has-source', 'show-has-source-display', 'has-source-yes', 'has_source');
+
+    // Show Info — Disable Nyaa Trusted toggle
+    bindBooleanToggle('edit-disable-nyaa-trusted-btn', 'update-disable-nyaa-trusted', 'show-disable-nyaa-trusted-display', 'disable-nyaa-trusted-yes', 'disable_nyaa_trusted');
 
     // Show Info — Enabled toggle
-    const editEnabledBtn = document.getElementById('edit-enabled-btn');
-    if (editEnabledBtn) {
-        editEnabledBtn.addEventListener('click', function() {
-            const infoList = document.querySelector('.show-info-list');
-            const showId = infoList.dataset.showId;
-            fetch(`/shows/${showId}/update-enabled/`, {
-                method: 'POST',
-                headers: { 'X-CSRFToken': getCsrfToken(), 'Content-Type': 'application/json' },
-            })
-            .then(r => r.json())
-            .then(data => {
-                if (!data.success) { alert('Error: ' + data.error); return; }
-                const display = document.getElementById('show-enabled-display');
-                display.textContent = data.enabled ? 'Yes' : 'No';
-                display.classList.toggle('enabled-yes', data.enabled);
-                editEnabledBtn.dataset.value = data.enabled ? 'true' : 'false';
-
-                const sidebarItem = document.querySelector(`.show-item[data-show-id="${showId}"]`);
-                if (sidebarItem) {
-                    sidebarItem.classList.toggle('show-disabled', !data.enabled);
-                    sidebarItem.dataset.enabled = data.enabled ? 'true' : 'false';
-                }
-            })
-            .catch(err => alert('Error: ' + err.message));
-        });
-    }
+    bindBooleanToggle('edit-enabled-btn', 'update-enabled', 'show-enabled-display', 'enabled-yes', 'enabled', function(value, showId) {
+        const sidebarItem = document.querySelector(`.show-item[data-show-id="${showId}"]`);
+        if (sidebarItem) {
+            sidebarItem.classList.toggle('show-disabled', !value);
+            sidebarItem.dataset.enabled = value ? 'true' : 'false';
+        }
+    });
 
     // Show Info — Episode Count edit
     const editEpisodeCountBtn = document.getElementById('edit-episode-count-btn');

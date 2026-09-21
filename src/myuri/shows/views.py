@@ -1250,6 +1250,16 @@ def update_show_has_source(request, show_id):
 
 @admin_required
 @require_POST
+def update_show_disable_nyaa_trusted(request, show_id):
+    """Toggle the disable_nyaa_trusted flag for a show."""
+    show = get_object_or_404(Show, id=show_id)
+    show.disable_nyaa_trusted = not show.disable_nyaa_trusted
+    show.save()
+    return JsonResponse({"success": True, "disable_nyaa_trusted": show.disable_nyaa_trusted})
+
+
+@admin_required
+@require_POST
 def update_show_enabled(request, show_id):
     """Toggle the enabled flag for a show."""
     show = get_object_or_404(Show, id=show_id)

@@ -159,6 +159,46 @@ class NyaaScannerTests(TestCase):
         self.assertEqual(len(result.errors), 1)
         self.assertIn("Network error", result.errors[0])
 
+    # ------------------------------------------------------------------
+    # disable_nyaa_trusted (permissive feed)
+    # ------------------------------------------------------------------
+
+    def test_scan_recent_uses_untrusted_filter_for_flagged_show(self):
+        """A show with disable_nyaa_trusted=True is scanned via the permissive (f=1) feed."""
+        show = self._make_show(title="Frieren", disable_nyaa_trusted=True)
+        scanner = NyaaScanner()
+        torrent = _make_torrent("[SmallFansub] Frieren - 05 [1080p].mkv")
+
+        with patch.object(scanner, "_fetch_recent_torrents", return_value=[torrent]) as mock_fetch:
+            result = scanner.scan_recent([show])
+
+        mock_fetch.assert_called_once_with(scanner._untrusted_filter)
+        self.assertEqual(len(result.episodes_found), 1)
+        self.assertEqual(result.episodes_found[0].show_id, show.id)
+
+    def test_scan_recent_splits_trusted_and_permissive_shows(self):
+        """A mix of trusted/permissive shows triggers two feed fetches, merged into one result."""
+        trusted_show = self._make_show(title="Frieren", disable_nyaa_trusted=False)
+        permissive_show = self._make_show(title="Berserk", disable_nyaa_trusted=True)
+        scanner = NyaaScanner()
+
+        trusted_torrent = _make_torrent("[SubsPlease] Frieren - 05 [1080p].mkv")
+        permissive_torrent = _make_torrent("[SmallFansub] Berserk - 07 [1080p].mkv")
+
+        def fake_fetch(quality_filter=None):
+            if quality_filter == scanner._untrusted_filter:
+                return [permissive_torrent]
+            return [trusted_torrent]
+
+        with patch.object(scanner, "_fetch_recent_torrents", side_effect=fake_fetch) as mock_fetch:
+            result = scanner.scan_recent([trusted_show, permissive_show])
+
+        self.assertEqual(mock_fetch.call_count, 2)
+        mock_fetch.assert_any_call(scanner.quality_filter)
+        mock_fetch.assert_any_call(scanner._untrusted_filter)
+        self.assertEqual(result.shows_scanned, 2)
+        found_ids = {ep.show_id for ep in result.episodes_found}
+        self.assertEqual(found_ids, {trusted_show.id, permissive_show.id})
 
     # ------------------------------------------------------------------
     # _normalize_name  (parameterized)

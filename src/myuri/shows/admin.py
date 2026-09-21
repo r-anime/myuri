@@ -32,8 +32,8 @@ class SeasonAdmin(admin.ModelAdmin):
 
 @admin.register(Show)
 class ShowAdmin(admin.ModelAdmin):
-    list_display = ["title", "title_en", "season", "franchise", "episode_count", "enabled", "has_source", "batch_release"]
-    list_filter = ["enabled", "season", "franchise", "has_source", "batch_release"]
+    list_display = ["title", "title_en", "season", "franchise", "episode_count", "enabled", "has_source", "disable_nyaa_trusted", "batch_release"]
+    list_filter = ["enabled", "season", "franchise", "has_source", "disable_nyaa_trusted", "batch_release"]
     search_fields = ["title", "title_en", "aliases"]
     inlines = [ShowLinkInline, EpisodeInline]
     fieldsets = [
@@ -41,7 +41,7 @@ class ShowAdmin(admin.ModelAdmin):
             "fields": ["title", "title_en", "aliases"]
         }),
         ("Classification", {
-            "fields": ["season", "franchise", "episode_count", "has_source", "batch_release", "enabled"]
+            "fields": ["season", "franchise", "episode_count", "has_source", "disable_nyaa_trusted", "batch_release", "enabled"]
         }),
     ]
 
