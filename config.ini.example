@@ -37,6 +37,8 @@ oauth_key =
 oauth_secret =
 subreddit = anime
 useragent = MyuriBot 1.0 episode discussion bot
+# Whether Reddit sends inbox notifications for replies to threads this account posts
+send_inbox_replies = false
 
 [reddit_moderator]
 # Moderator account for removing mistakenly-posted threads

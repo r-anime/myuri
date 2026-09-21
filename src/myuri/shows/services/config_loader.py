@@ -23,6 +23,7 @@ class RedditCredentials:
     oauth_secret: str
     subreddit: str
     useragent: str
+    send_inbox_replies: bool = False
 
 
 @dataclass
@@ -90,6 +91,7 @@ def load_reddit_config(account_name: str = "reddit_episode_poster") -> RedditCre
         oauth_secret=sec.get("oauth_secret"),
         subreddit=sec.get("subreddit"),
         useragent=sec.get("useragent"),
+        send_inbox_replies=sec.getboolean("send_inbox_replies", fallback=False),
     )
 
 
