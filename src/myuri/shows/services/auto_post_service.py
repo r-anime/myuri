@@ -204,6 +204,7 @@ class AutoPostService:
                     episode=str(eligible_episode.scanned_episode),
                     url=result["url"],
                     is_automated=True,
+                    is_final=is_final,
                     show_title_en=show.title_en or None,
                     sources=eligible_episode.sources,
                 )

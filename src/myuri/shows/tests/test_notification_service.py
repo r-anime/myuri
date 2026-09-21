@@ -4,6 +4,7 @@ from django.test import TestCase
 
 from shows.services.notification_service import (
     COLOR_CUSTOM,
+    COLOR_FINAL,
     COLOR_POSTED,
     COLOR_REMOVED,
     NotificationService,
@@ -116,6 +117,52 @@ class NotificationServiceTests(TestCase):
         embed = self._sent_embed()
         self.assertNotIn("fields", embed)
 
+    @patch("shows.services.notification_service.load_post_templates")
+    def test_notify_episode_posted_final(self, mock_load_templates):
+        mock_load_templates.return_value = Mock(title_postfix_final="- FINAL")
+
+        self.service.notify_episode_posted(
+            show_title="Test Show",
+            episode="12",
+            url="https://reddit.com/thread",
+            is_automated=True,
+            is_final=True,
+        )
+
+        embed = self._sent_embed()
+        self.assertEqual(embed["title"], "Test Show - Episode 12 - FINAL")
+        self.assertEqual(embed["color"], COLOR_FINAL)
+
+    @patch("shows.services.notification_service.load_post_templates")
+    def test_notify_episode_posted_final_without_postfix_configured(self, mock_load_templates):
+        mock_load_templates.return_value = Mock(title_postfix_final="")
+
+        self.service.notify_episode_posted(
+            show_title="Test Show",
+            episode="12",
+            url="https://reddit.com/thread",
+            is_final=True,
+        )
+
+        embed = self._sent_embed()
+        self.assertEqual(embed["title"], "Test Show - Episode 12")
+        self.assertEqual(embed["color"], COLOR_FINAL)
+
+    @patch("shows.services.notification_service.load_post_templates")
+    def test_notify_episode_posted_final_config_load_failure_degrades_gracefully(self, mock_load_templates):
+        mock_load_templates.side_effect = FileNotFoundError("config.ini not found")
+
+        self.service.notify_episode_posted(
+            show_title="Test Show",
+            episode="12",
+            url="https://reddit.com/thread",
+            is_final=True,
+        )
+
+        embed = self._sent_embed()
+        self.assertEqual(embed["title"], "Test Show - Episode 12")
+        self.assertEqual(embed["color"], COLOR_FINAL)
+
     def test_notify_custom_episode_posted(self):
         self.service.notify_custom_episode_posted(
             show_title="Test Show",
@@ -144,6 +191,21 @@ class NotificationServiceTests(TestCase):
             "Test Show English\n\U0001F4FA Custom Post",
         )
         self.assertEqual(embed["color"], COLOR_CUSTOM)
+
+    @patch("shows.services.notification_service.load_post_templates")
+    def test_notify_custom_episode_posted_final(self, mock_load_templates):
+        mock_load_templates.return_value = Mock(title_postfix_final="- FINAL")
+
+        self.service.notify_custom_episode_posted(
+            show_title="Test Show",
+            discussion_subject="Movie Discussion",
+            url="https://reddit.com/thread",
+            is_final=True,
+        )
+
+        embed = self._sent_embed()
+        self.assertEqual(embed["title"], "Test Show - Movie Discussion - FINAL")
+        self.assertEqual(embed["color"], COLOR_FINAL)
 
     def test_notify_episode_removed_with_url_and_user(self):
         self.service.notify_episode_removed(
