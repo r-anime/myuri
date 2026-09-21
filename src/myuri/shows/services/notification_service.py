@@ -4,13 +4,14 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import List, Optional
 
-from .config_loader import WhitespaceFriendlyConfigParser
+from .config_loader import WhitespaceFriendlyConfigParser, load_post_templates
 
 logger = logging.getLogger(__name__)
 
 COLOR_POSTED = 0x57F287
 COLOR_CUSTOM = 0x5865F2
 COLOR_REMOVED = 0xED4245
+COLOR_FINAL = 0x9C27B0  # Matches the "completed" purple used on the /shows page
 
 
 def _get_project_root() -> Path:
@@ -69,6 +70,19 @@ class NotificationService:
             logger.warning(f"Failed to load NotificationConfig: {e}")
             return False
 
+    def _final_title(self, title: str, is_final: bool) -> str:
+        """Append the same final-episode postfix used on Reddit titles, if configured."""
+        if not is_final:
+            return title
+
+        try:
+            postfix = load_post_templates().title_postfix_final
+        except Exception as e:
+            logger.warning(f"Failed to load post templates for final postfix: {e}")
+            return title
+
+        return f"{title} {postfix}" if postfix else title
+
     def notify_episode_posted(
         self,
         show_title: str,
@@ -76,6 +90,7 @@ class NotificationService:
         url: str,
         user: Optional[str] = None,
         is_automated: bool = False,
+        is_final: bool = False,
         show_title_en: Optional[str] = None,
         sources: Optional[List[str]] = None,
     ):
@@ -87,6 +102,7 @@ class NotificationService:
             url: Reddit discussion thread URL
             user: Username who triggered the post (None for automated)
             is_automated: True if posted by scheduled scanner
+            is_final: Whether this is the final episode
             show_title_en: English title of the show, if known
             sources: Scanner(s) that found this episode (e.g. ["Nyaa", "Nekobt"]),
                 if it was triggered by a scan
@@ -103,12 +119,14 @@ class NotificationService:
         if show_title_en:
             description = f"{show_title_en}\n{description}"
 
+        title = self._final_title(f"{show_title} - Episode {episode}", is_final)
+
         embed = {
-            "title": _truncate(f"{show_title} - Episode {episode}"),
+            "title": _truncate(title),
             "url": url,
             "description": description,
             "timestamp": datetime.now(timezone.utc).isoformat(),
-            "color": COLOR_POSTED if is_automated else COLOR_CUSTOM,
+            "color": COLOR_FINAL if is_final else (COLOR_POSTED if is_automated else COLOR_CUSTOM),
         }
         if user:
             embed["author"] = {"name": f"u/{user}"}
@@ -123,6 +141,7 @@ class NotificationService:
         discussion_subject: str,
         url: str,
         user: Optional[str] = None,
+        is_final: bool = False,
         show_title_en: Optional[str] = None,
     ):
         """Send notification when a custom episode is posted.
@@ -132,6 +151,7 @@ class NotificationService:
             discussion_subject: Custom subject/title of the discussion
             url: Reddit discussion thread URL
             user: Username who triggered the post
+            is_final: Whether this is the final episode
             show_title_en: English title of the show, if known
         """
         if not self._is_discord_enabled():
@@ -146,12 +166,14 @@ class NotificationService:
         if show_title_en:
             description = f"{show_title_en}\n{description}"
 
+        title = self._final_title(f"{show_title} - {discussion_subject}", is_final)
+
         embed = {
-            "title": _truncate(f"{show_title} - {discussion_subject}"),
+            "title": _truncate(title),
             "url": url,
             "description": description,
             "timestamp": datetime.now(timezone.utc).isoformat(),
-            "color": COLOR_CUSTOM,
+            "color": COLOR_FINAL if is_final else COLOR_CUSTOM,
         }
         if user:
             embed["author"] = {"name": f"u/{user}"}
