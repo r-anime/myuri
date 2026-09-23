@@ -14,9 +14,11 @@ rules:
   braces: enable
   brackets: enable
   colons: enable
-  commas: enable
+  commas:
+    min-spaces-after: 0
   comments:
     level: warning
+    require-starting-space: false
     min-spaces-from-content: 1
   comments-indentation:
     level: warning

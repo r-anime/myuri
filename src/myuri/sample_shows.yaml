@@ -1,3 +1,4 @@
+---
 # Sample YAML file for loading anime shows into the database
 # py manage.py load_shows sample_shows.yaml
 
