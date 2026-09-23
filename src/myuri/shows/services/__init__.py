@@ -46,7 +46,6 @@ def __getattr__(name):
     if name in (
         "import_shows_to_database",
         "get_season_config_files",
-        "delete_season_shows",
         "parse_season_from_filename",
     ):
         from . import season_config_loader
@@ -77,6 +76,5 @@ __all__ = [
     "DiscoveryFailed",
     "import_shows_to_database",
     "get_season_config_files",
-    "delete_season_shows",
     "parse_season_from_filename",
 ]

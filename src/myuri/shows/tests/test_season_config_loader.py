@@ -6,7 +6,6 @@ from shows.services.season_config_loader import (
     load_season_config,
     import_shows_to_database,
     get_season_config_files,
-    delete_season_shows,
 )
 
 

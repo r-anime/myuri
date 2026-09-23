@@ -375,26 +375,3 @@ def get_season_config_files(config_dir: str) -> list[dict]:
             continue
 
     return files
-
-
-def delete_season_shows(year: int, season_code: str) -> int:
-    """
-    Delete all shows and their episodes for a season.
-
-    Args:
-        year: The year
-        season_code: The season code ('winter', 'spring', etc.)
-
-    Returns:
-        Number of shows deleted
-    """
-    try:
-        season = Season.objects.get(year=year, season=season_code)
-    except Season.DoesNotExist:
-        return 0
-
-    count = season.shows.count()
-    # Cascade delete will handle episodes and links
-    season.shows.all().delete()
-
-    return count

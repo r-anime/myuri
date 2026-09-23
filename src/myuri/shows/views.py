@@ -378,7 +378,6 @@ def season_config_manage(request):
     from .services import (
         get_season_config_files,
         import_shows_to_database,
-        delete_season_shows,
     )
 
     # Get config directory path (relative to src/)
@@ -399,7 +398,6 @@ def season_config_manage(request):
     )
 
     import_result = None
-    delete_result = None
 
     if request.method == "POST":
         action = request.POST.get("action")
@@ -442,30 +440,6 @@ def season_config_manage(request):
             else:
                 messages.error(request, "No file selected")
 
-        elif action == "delete_season":
-            year = request.POST.get("year")
-            season_code = request.POST.get("season")
-            if year and season_code:
-                try:
-                    count = delete_season_shows(int(year), season_code)
-                    delete_result = {
-                        "success": True,
-                        "deleted": count,
-                    }
-                    messages.success(
-                        request,
-                        f"Deleted {count} shows from {season_code.title()} {year}"
-                    )
-                except Exception as e:
-                    logger.exception("Error deleting season shows")
-                    delete_result = {
-                        "success": False,
-                        "error": str(e),
-                    }
-                    messages.error(request, f"Delete failed: {e}")
-            else:
-                messages.error(request, "Invalid season specified")
-
         # Redirect to avoid form resubmission
         return redirect("shows:season_config")
 
@@ -473,7 +447,6 @@ def season_config_manage(request):
         "config_files": config_files,
         "existing_seasons": existing_seasons,
         "import_result": import_result,
-        "delete_result": delete_result,
     })
 
 
