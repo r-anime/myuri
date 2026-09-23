@@ -88,23 +88,6 @@
         background: var(--bg-secondary);
     }
 
-    .inline-form {
-        display: inline;
-    }
-
-    .btn-danger {
-        background: #dc3545;
-    }
-
-    .btn-danger:hover {
-        background: #c82333;
-    }
-
-    .btn-small {
-        padding: 6px 12px;
-        font-size: 0.85em;
-    }
-
     .empty-message {
         color: var(--text-muted);
         font-style: italic;
@@ -128,53 +111,6 @@
         font-family: monospace;
         font-size: 0.9em;
         color: var(--text-primary);
-    }
-
-    /* Confirm dialog */
-    .confirm-overlay {
-        position: fixed;
-        top: 0;
-        left: 0;
-        right: 0;
-        bottom: 0;
-        background: rgba(0, 0, 0, 0.5);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        z-index: 1000;
-    }
-
-    .confirm-dialog {
-        background: var(--bg-secondary);
-        color: var(--text-primary);
-        padding: 20px;
-        border-radius: 8px;
-        max-width: 400px;
-        box-shadow: 0 4px 20px var(--shadow-color);
-    }
-
-    .confirm-dialog h4 {
-        margin: 0 0 10px 0;
-        color: #dc3545;
-    }
-
-    .confirm-dialog p {
-        margin: 0 0 15px 0;
-        color: var(--text-muted);
-    }
-
-    .confirm-dialog .dialog-buttons {
-        display: flex;
-        gap: 10px;
-        justify-content: flex-end;
-    }
-
-    .confirm-dialog .btn-cancel {
-        background: #666;
-    }
-
-    .confirm-dialog .btn-cancel:hover {
-        background: #555;
     }
 </style>
 {% endblock %}
@@ -221,7 +157,6 @@
                     <th>Season</th>
                     <th>Shows</th>
                     <th>Active Shows</th>
-                    <th>Actions</th>
                 </tr>
             </thead>
             <tbody>
@@ -230,19 +165,6 @@
                     <td>{{ season.get_season_display }} {{ season.year }}</td>
                     <td>{{ season.show_count }}</td>
                     <td>{{ season.active_show_count }}</td>
-                    <td>
-                        <form method="post" class="inline-form delete-form"
-                              data-season="{{ season.get_season_display }} {{ season.year }}"
-                              data-count="{{ season.show_count }}">
-                            {% csrf_token %}
-                            <input type="hidden" name="action" value="delete_season">
-                            <input type="hidden" name="year" value="{{ season.year }}">
-                            <input type="hidden" name="season" value="{{ season.season }}">
-                            <button type="submit" class="btn btn-danger btn-small">
-                                Delete Shows
-                            </button>
-                        </form>
-                    </td>
                 </tr>
                 {% endfor %}
             </tbody>
@@ -263,62 +185,4 @@
         </p>
     </section>
 </div>
-
-<script>
-document.addEventListener('DOMContentLoaded', function() {
-    // Delete confirmation
-    const deleteForms = document.querySelectorAll('.delete-form');
-
-    deleteForms.forEach(function(form) {
-        form.addEventListener('submit', function(e) {
-            e.preventDefault();
-
-            const season = this.dataset.season;
-            const count = this.dataset.count;
-
-            showDeleteConfirm(season, count, () => {
-                this.submit();
-            });
-        });
-    });
-
-    function showDeleteConfirm(season, count, onConfirm) {
-        const overlay = document.createElement('div');
-        overlay.className = 'confirm-overlay';
-        overlay.innerHTML = `
-            <div class="confirm-dialog">
-                <h4>Delete Season Shows?</h4>
-                <p>This will permanently delete <strong>${count} shows</strong> and all their episodes from <strong>${escapeHtml(season)}</strong>.</p>
-                <p>This action cannot be undone.</p>
-                <div class="dialog-buttons">
-                    <button class="btn btn-cancel" id="delete-cancel">Cancel</button>
-                    <button class="btn btn-danger" id="delete-ok">Delete ${count} Shows</button>
-                </div>
-            </div>
-        `;
-        document.body.appendChild(overlay);
-
-        document.getElementById('delete-cancel').addEventListener('click', function() {
-            overlay.remove();
-        });
-
-        document.getElementById('delete-ok').addEventListener('click', function() {
-            overlay.remove();
-            onConfirm();
-        });
-
-        overlay.addEventListener('click', function(e) {
-            if (e.target === overlay) {
-                overlay.remove();
-            }
-        });
-    }
-
-    function escapeHtml(text) {
-        const div = document.createElement('div');
-        div.textContent = text;
-        return div.innerHTML;
-    }
-});
-</script>
 {% endblock %}
