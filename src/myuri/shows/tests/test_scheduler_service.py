@@ -90,11 +90,12 @@ class SchedulerServiceScanAllSourcesTests(TestCase):
             link="https://example/1",
         )
 
-    def _service_with_fakes(self, nyaa_result, nekobt_result, cr_result):
+    def _service_with_fakes(self, nyaa_result, nekobt_result, cr_result, yt_result=None):
         service = SchedulerService()
         service._scanner = _FakeScanner(nyaa_result)
         service._nekobt_scanner = _FakeScanner(nekobt_result)
         service._crunchyroll_scanner = _FakeScanner(cr_result)
+        service._youtube_scanner = _FakeScanner(yt_result or ScanResult(scan_time=datetime.now()))
         return service
 
     def test_merges_episodes_from_all_three_scanners(self):
@@ -108,6 +109,20 @@ class SchedulerServiceScanAllSourcesTests(TestCase):
 
         sources = sorted(f.source for f in result.episodes_found)
         self.assertEqual(sources, ["Crunchyroll", "Nekobt", "Nyaa"])
+
+    def test_merges_youtube_episodes_and_errors(self):
+        empty = ScanResult(scan_time=datetime.now())
+        service = self._service_with_fakes(
+            nyaa_result=empty, nekobt_result=empty, cr_result=empty,
+            yt_result=ScanResult(
+                scan_time=datetime.now(), episodes_found=[self._found(4, "YouTube")], errors=["youtube down"]
+            ),
+        )
+
+        result = service._scan_all_sources([self.show])
+
+        self.assertEqual([f.source for f in result.episodes_found], ["YouTube"])
+        self.assertEqual(result.errors, ["youtube down"])
 
     def test_merges_errors_from_all_three_scanners(self):
         service = self._service_with_fakes(

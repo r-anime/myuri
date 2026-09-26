@@ -16,6 +16,9 @@ def __getattr__(name):
     if name == "NekobtScanner":
         from .nekobt_scanner import NekobtScanner
         return NekobtScanner
+    if name == "YoutubeScanner":
+        from .youtube_scanner import YoutubeScanner
+        return YoutubeScanner
     if name == "NyaaSpecificScanner":
         from .nyaa_specific import NyaaSpecificScanner
         return NyaaSpecificScanner
@@ -61,6 +64,7 @@ __all__ = [
     "NyaaSpecificScanner",
     "CrunchyrollScanner",
     "NekobtScanner",
+    "YoutubeScanner",
     "ScanResult",
     "AutoPostService",
     "EpisodeEligibility",

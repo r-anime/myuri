@@ -55,6 +55,12 @@ useragent = MyuriBot 1.0 moderator actions
 # Create at: Server Settings → Integrations → Webhooks → New Webhook
 webhook_url =
 
+[youtube]
+# YouTube Data API v3 key for scanning show playlists (leave empty to disable)
+# Create at: Google Cloud Console → APIs & Services → enable "YouTube Data API v3" → Credentials → API key
+api_key =
+
+
 [post]
 title = {show_name} - Episode {episode} discussion
 title_with_en = {show_name} • {show_name_en} - Episode {episode} discussion
