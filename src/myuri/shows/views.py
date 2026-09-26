@@ -614,8 +614,8 @@ def scan_page(request):
 @admin_required
 @require_POST
 def trigger_scan(request):
-    """Trigger a scan for new episodes from Nyaa.si, Crunchyroll, and Nekobt."""
-    from .services import NyaaScanner, CrunchyrollScanner, NekobtScanner
+    """Trigger a scan for new episodes from Nyaa.si, Crunchyroll, Nekobt, and YouTube."""
+    from .services import NyaaScanner, CrunchyrollScanner, NekobtScanner, YoutubeScanner
     from .services.scan_result import ScanResult
 
     # Get enabled shows
@@ -631,12 +631,16 @@ def trigger_scan(request):
         nyaa_result = NyaaScanner().scan_recent(enabled_shows)
         cr_result = CrunchyrollScanner().scan_recent(enabled_shows)
         nekobt_result = NekobtScanner().scan_recent(enabled_shows)
+        yt_result = YoutubeScanner().scan_recent(enabled_shows)
 
         result = ScanResult(
             scan_time=nyaa_result.scan_time,
-            episodes_found=nyaa_result.episodes_found + cr_result.episodes_found + nekobt_result.episodes_found,
+            episodes_found=(
+                nyaa_result.episodes_found + cr_result.episodes_found
+                + nekobt_result.episodes_found + yt_result.episodes_found
+            ),
             shows_scanned=nyaa_result.shows_scanned,
-            errors=nyaa_result.errors + cr_result.errors + nekobt_result.errors,
+            errors=nyaa_result.errors + cr_result.errors + nekobt_result.errors + yt_result.errors,
         )
 
         # Store results in session
@@ -670,6 +674,7 @@ def scan_individual_show(request, show_id):
     """
     from .services.nyaa_specific import NyaaSpecificScanner
     from .services.nekobt_scanner import NekobtScanner
+    from .services.youtube_scanner import YoutubeScanner
     from .services.scan_result import ScanResult
 
     show = get_object_or_404(Show, id=show_id, enabled=True)
@@ -677,12 +682,13 @@ def scan_individual_show(request, show_id):
     try:
         nyaa_result = NyaaSpecificScanner().scan_show(show, max_age_days=7)
         nekobt_result = NekobtScanner().scan_recent([show], max_age_days=7)
+        yt_result = YoutubeScanner().scan_recent([show], max_age_days=7)
 
         combined = ScanResult(
             scan_time=nyaa_result.scan_time,
-            episodes_found=nyaa_result.episodes_found + nekobt_result.episodes_found,
+            episodes_found=nyaa_result.episodes_found + nekobt_result.episodes_found + yt_result.episodes_found,
             shows_scanned=1,
-            errors=nyaa_result.errors + nekobt_result.errors,
+            errors=nyaa_result.errors + nekobt_result.errors + yt_result.errors,
         )
 
         return JsonResponse({

@@ -24,6 +24,7 @@ class SchedulerService:
         self._scanner = None
         self._nekobt_scanner = None
         self._crunchyroll_scanner = None
+        self._youtube_scanner = None
         self._auto_post_service = None
 
     @property
@@ -50,16 +51,28 @@ class SchedulerService:
             self._crunchyroll_scanner = CrunchyrollScanner()
         return self._crunchyroll_scanner
 
+    @property
+    def youtube_scanner(self):
+        """Lazy-load YoutubeScanner to avoid requiring requests at import time."""
+        if self._youtube_scanner is None:
+            from .youtube_scanner import YoutubeScanner
+            self._youtube_scanner = YoutubeScanner()
+        return self._youtube_scanner
+
     def _scan_all_sources(self, enabled_shows):
         """Run every wired-in scanner against enabled_shows and merge into one ScanResult."""
         nyaa_result = self.scanner.scan_recent(enabled_shows)
         nekobt_result = self.nekobt_scanner.scan_recent(enabled_shows)
         cr_result = self.crunchyroll_scanner.scan_recent(enabled_shows)
+        yt_result = self.youtube_scanner.scan_recent(enabled_shows)
         return ScanResult(
             scan_time=nyaa_result.scan_time,
-            episodes_found=nyaa_result.episodes_found + nekobt_result.episodes_found + cr_result.episodes_found,
+            episodes_found=(
+                nyaa_result.episodes_found + nekobt_result.episodes_found
+                + cr_result.episodes_found + yt_result.episodes_found
+            ),
             shows_scanned=nyaa_result.shows_scanned,
-            errors=nyaa_result.errors + nekobt_result.errors + cr_result.errors,
+            errors=nyaa_result.errors + nekobt_result.errors + cr_result.errors + yt_result.errors,
         )
 
     def _store_scan_episodes(self, scan_history, scan_result):
@@ -101,7 +114,7 @@ class SchedulerService:
         Steps:
         1. Check if scheduler is enabled via SchedulerConfig
         2. Create ScanHistory record
-        3. Run NyaaScanner, NekobtScanner, and CrunchyrollScanner scan_recent(), merged into one ScanResult
+        3. Run NyaaScanner, NekobtScanner, CrunchyrollScanner, and YoutubeScanner scan_recent(), merged into one ScanResult
         4. Store found episodes as ScanEpisode records
         5. Run AutoPostService to determine eligibility and post
         6. Update ScanEpisode statuses and ScanHistory counts

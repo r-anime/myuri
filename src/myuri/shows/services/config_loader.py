@@ -172,3 +172,23 @@ def load_post_templates() -> PostTemplates:
         batch_thread_body=sec.get("batch_thread_body", ""),
         formats=formats,
     )
+
+
+def load_youtube_api_key() -> str | None:
+    """Load the YouTube Data API key from config.ini.
+
+    Returns:
+        The API key, or None if config file, [youtube] section or key is missing/empty.
+    """
+    config_path = _get_project_root() / "config.ini"
+
+    if not config_path.exists():
+        return None
+
+    parsed = WhitespaceFriendlyConfigParser()
+    parsed.read(config_path, encoding="utf-8")
+
+    if "youtube" not in parsed:
+        return None
+
+    return parsed["youtube"].get("api_key", "").strip() or None
