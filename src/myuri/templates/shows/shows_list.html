@@ -98,8 +98,6 @@
         text-transform: uppercase;
         letter-spacing: 0.05em;
         color: var(--text-muted, #888);
-        padding: 0.6rem 0.75rem 0.2rem;
-        pointer-events: none;
         border-top: 1px solid var(--border-color, #333);
         margin-top: 0.25rem;
     }
@@ -107,6 +105,34 @@
     .shows-nav .season-header:first-child {
         border-top: none;
         margin-top: 0;
+    }
+
+    .season-toggle {
+        display: block;
+        width: 100%;
+        padding: 0.6rem 0.75rem 0.2rem;
+        background: transparent;
+        border: none;
+        font: inherit;
+        color: inherit;
+        text-transform: inherit;
+        letter-spacing: inherit;
+        text-align: left;
+        cursor: pointer;
+    }
+
+    .season-toggle:hover {
+        color: var(--text-primary);
+    }
+
+    .season-chevron {
+        display: inline-block;
+        margin-right: 0.4em;
+        transition: transform 0.15s;
+    }
+
+    .season-header.collapsed .season-chevron {
+        transform: rotate(-90deg);
     }
 
     .no-results {
@@ -683,7 +709,9 @@
         </div>
         <ul class="shows-nav" id="shows-list">
             {% for season, season_shows in seasons_with_shows %}
-            <li class="season-header" data-season="{{ season.id }}">{{ season }}</li>
+            <li class="season-header" data-season="{{ season.id }}">
+                <button type="button" class="season-toggle" aria-expanded="true"><span class="season-chevron">&#9662;</span>{{ season }}</button>
+            </li>
             {% for show in season_shows %}
             <li class="show-item {% if selected_show.id == show.id %}active{% endif %}{% if not show.enabled %} show-disabled{% endif %}"
                 data-show-id="{{ show.id }}"
@@ -880,9 +908,24 @@ document.addEventListener('DOMContentLoaded', function() {
     const showItems = showsList.querySelectorAll('.show-item');
     const noResults = document.getElementById('no-results');
 
+    let collapsedSeasons;
+    try {
+        collapsedSeasons = new Set(JSON.parse(localStorage.getItem('collapsedSeasons') || '[]'));
+    } catch (e) {
+        collapsedSeasons = new Set();
+    }
+
+    function saveCollapsedSeasons() {
+        try {
+            localStorage.setItem('collapsedSeasons', JSON.stringify(Array.from(collapsedSeasons)));
+        } catch (e) {}
+    }
+
     function applyShowFilter() {
         const query = searchInput.value.toLowerCase().trim();
         const showDisabled = showDisabledCheckbox.checked;
+        const searching = query !== '';
+        const matchingSeasons = new Set();
         let visibleCount = 0;
 
         showItems.forEach(function(item) {
@@ -897,9 +940,13 @@ document.addEventListener('DOMContentLoaded', function() {
                 aliases.includes(query);
             const matchesEnabled = isEnabled || showDisabled;
 
+            const seasonId = item.dataset.seasonId;
+            const collapsed = !searching && collapsedSeasons.has(seasonId);
+
             if (matchesQuery && matchesEnabled) {
-                item.style.display = '';
+                matchingSeasons.add(seasonId);
                 visibleCount++;
+                item.style.display = collapsed ? 'none' : '';
             } else {
                 item.style.display = 'none';
             }
@@ -910,12 +957,25 @@ document.addEventListener('DOMContentLoaded', function() {
         const seasonHeaders = showsList.querySelectorAll('.season-header');
         seasonHeaders.forEach(function(header) {
             const seasonId = header.dataset.season;
-            const hasVisible = Array.from(
-                showsList.querySelectorAll(`.show-item[data-season-id="${seasonId}"]`)
-            ).some(item => item.style.display !== 'none');
-            header.style.display = hasVisible ? '' : 'none';
+            const collapsed = !searching && collapsedSeasons.has(seasonId);
+            header.style.display = matchingSeasons.has(seasonId) ? '' : 'none';
+            header.classList.toggle('collapsed', collapsed);
+            header.querySelector('.season-toggle').setAttribute('aria-expanded', collapsed ? 'false' : 'true');
         });
     }
+
+    showsList.querySelectorAll('.season-toggle').forEach(function(toggle) {
+        toggle.addEventListener('click', function() {
+            const seasonId = toggle.closest('.season-header').dataset.season;
+            if (collapsedSeasons.has(seasonId)) {
+                collapsedSeasons.delete(seasonId);
+            } else {
+                collapsedSeasons.add(seasonId);
+            }
+            saveCollapsedSeasons();
+            applyShowFilter();
+        });
+    });
 
     showDisabledCheckbox.checked = localStorage.getItem('showDisabledShows') === 'true';
     applyShowFilter();

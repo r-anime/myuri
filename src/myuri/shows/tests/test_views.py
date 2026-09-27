@@ -86,3 +86,26 @@ class ShowsListStatusColorTests(TestCase):
         show = Show.objects.create(title="New Show", season=self.season, episode_count=12)
 
         self.assertEqual(self._get_status_color(show), "grey")
+
+
+class ShowsListSeasonToggleTests(TestCase):
+
+    @classmethod
+    def setUpTestData(cls):
+        cls.winter = Season.objects.create(year=2026, season="winter")
+        cls.spring = Season.objects.create(year=2026, season="spring")
+        Show.objects.create(title="Winter Show", season=cls.winter)
+        Show.objects.create(title="Spring Show", season=cls.spring)
+        cls.staff_user = get_user_model().objects.create_user(
+            username="staff", password="password", is_staff=True
+        )
+
+    def setUp(self):
+        self.client.force_login(self.staff_user)
+
+    def test_each_season_header_has_toggle(self):
+        response = self.client.get(reverse("shows:shows_list"))
+
+        self.assertContains(response, 'class="season-toggle"', count=2)
+        for season in (self.winter, self.spring):
+            self.assertContains(response, f'<li class="season-header" data-season="{season.id}">')
