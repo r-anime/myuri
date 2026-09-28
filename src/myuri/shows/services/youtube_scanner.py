@@ -39,6 +39,19 @@ _NUM_EXTRACTORS = [
 _MAX_EPISODE = 720
 
 
+def _parse_iso_utc(date_str: Optional[str]) -> Optional[datetime]:
+    """Parse an ISO 8601 timestamp (e.g. "2024-01-01T12:00:00Z") into a naive UTC datetime."""
+    if not date_str:
+        return None
+    try:
+        parsed = datetime.fromisoformat(date_str.replace("Z", "+00:00"))
+    except ValueError:
+        return None
+    if parsed.tzinfo is not None:
+        parsed = parsed.astimezone(timezone.utc).replace(tzinfo=None)
+    return parsed
+
+
 class YoutubeScanner:
     """Scanner for finding anime episode releases in YouTube playlists."""
 
@@ -88,7 +101,7 @@ class YoutubeScanner:
             result.shows_scanned += 1
 
             try:
-                videos = self._fetch_videos_for_playlist(playlist_id, api_key)
+                videos = self._fetch_videos_for_playlist(playlist_id, api_key, max_age_days)
             except Exception as e:
                 logger.exception(f"Failed to fetch YouTube playlist for {show.title!r}")
                 result.errors.append(f"{show.title}: {e}")
@@ -130,11 +143,17 @@ class YoutubeScanner:
                 return None
         return None
 
-    def _fetch_videos_for_playlist(self, playlist_id: str, api_key: str) -> list:
-        """Fetch video details (status + snippet) for every item in a playlist.
+    def _fetch_videos_for_playlist(self, playlist_id: str, api_key: str, max_age_days: int) -> list:
+        """Fetch video details (status + snippet) for recent items in a playlist.
+
+        Items whose contentDetails.videoPublishedAt is older than max_age_days are
+        dropped before the videos.list lookup, to save API quota. Items without a
+        videoPublishedAt (private, scheduled premieres) are kept for
+        _is_valid_video to judge.
 
         This is the mock boundary for tests.
         """
+        cutoff = datetime.utcnow() - timedelta(days=max_age_days)
         video_ids = []
         page_token = None
         while True:
@@ -150,12 +169,20 @@ class YoutubeScanner:
             r.raise_for_status()
             data = r.json()
             for item in data.get("items", []):
-                video_id = item.get("contentDetails", {}).get("videoId")
-                if video_id:
-                    video_ids.append(video_id)
+                details = item.get("contentDetails", {})
+                video_id = details.get("videoId")
+                if not video_id:
+                    continue
+                published = _parse_iso_utc(details.get("videoPublishedAt"))
+                if published is not None and published <= cutoff:
+                    continue
+                video_ids.append(video_id)
             page_token = data.get("nextPageToken")
             if not page_token:
                 break
+
+        if not video_ids:
+            return []
 
         videos = []
         for i in range(0, len(video_ids), _YT_PAGE_SIZE):
@@ -188,16 +215,7 @@ class YoutubeScanner:
 
     def _parse_published_date(self, video: dict) -> Optional[datetime]:
         """Parse snippet.publishedAt into a naive UTC datetime."""
-        date_str = video.get("snippet", {}).get("publishedAt")
-        if not date_str:
-            return None
-        try:
-            parsed = datetime.fromisoformat(date_str.replace("Z", "+00:00"))
-        except ValueError:
-            return None
-        if parsed.tzinfo is not None:
-            parsed = parsed.astimezone(timezone.utc).replace(tzinfo=None)
-        return parsed
+        return _parse_iso_utc(video.get("snippet", {}).get("publishedAt"))
 
     def _extract_episode_number(self, title: str) -> Optional[int]:
         """Extract an episode number from a video title, or None if not found."""

@@ -48,7 +48,7 @@ class YoutubeScannerTests(TestCase):
         """Run scan_recent with _fetch_videos_for_playlist mocked."""
         scanner = YoutubeScanner(api_key="fake_key")
 
-        def fake_fetch(playlist_id, api_key):
+        def fake_fetch(playlist_id, api_key, max_age_days):
             return videos_by_playlist.get(playlist_id, [])
 
         with patch.object(scanner, "_fetch_videos_for_playlist", side_effect=fake_fetch):
@@ -164,7 +164,7 @@ class YoutubeScannerTests(TestCase):
         self._add_yt_link(show_good, playlist_id="PLgood")
         scanner = YoutubeScanner(api_key="fake_key")
 
-        def fake_fetch(playlist_id, api_key):
+        def fake_fetch(playlist_id, api_key, max_age_days):
             if playlist_id == "PLbad":
                 raise ConnectionError("timeout")
             return [_make_video("Episode 3")]
@@ -243,7 +243,7 @@ class YoutubeFetchPaginationTests(SimpleTestCase):
             "shows.services.youtube_scanner.requests.get",
             side_effect=[self._response(page1), self._response(page2), self._response(videos)],
         ) as mock_get:
-            result = YoutubeScanner(api_key="k")._fetch_videos_for_playlist("PLx", "k")
+            result = YoutubeScanner(api_key="k")._fetch_videos_for_playlist("PLx", "k", 2)
 
         self.assertEqual([v["id"] for v in result], ["v1", "v2"])
         self.assertEqual(mock_get.call_args_list[1].kwargs["params"]["pageToken"], "TOKEN2")
@@ -254,7 +254,53 @@ class YoutubeFetchPaginationTests(SimpleTestCase):
             "shows.services.youtube_scanner.requests.get",
             return_value=self._response({"items": []}),
         ) as mock_get:
-            result = YoutubeScanner(api_key="k")._fetch_videos_for_playlist("PLx", "k")
+            result = YoutubeScanner(api_key="k")._fetch_videos_for_playlist("PLx", "k", 2)
 
         self.assertEqual(result, [])
         self.assertEqual(mock_get.call_count, 1)
+
+
+class YoutubeFetchRecencyFilterTests(SimpleTestCase):
+    """Old playlist items are dropped before videos.list to save API quota."""
+
+    def _response(self, payload):
+        r = MagicMock()
+        r.json.return_value = payload
+        r.raise_for_status.return_value = None
+        return r
+
+    def _item(self, video_id, days_ago=None):
+        details = {"videoId": video_id}
+        if days_ago is not None:
+            published = datetime.now(timezone.utc) - timedelta(days=days_ago)
+            details["videoPublishedAt"] = published.strftime("%Y-%m-%dT%H:%M:%SZ")
+        return {"contentDetails": details}
+
+    def test_only_old_items_makes_no_video_request(self):
+        page = {"items": [self._item("old1", days_ago=10), self._item("old2", days_ago=3)]}
+
+        with patch(
+            "shows.services.youtube_scanner.requests.get",
+            return_value=self._response(page),
+        ) as mock_get:
+            result = YoutubeScanner(api_key="k")._fetch_videos_for_playlist("PLx", "k", 2)
+
+        self.assertEqual(result, [])
+        self.assertEqual(mock_get.call_count, 1)
+
+    def test_looks_up_only_recent_and_undated_items(self):
+        page = {"items": [
+            self._item("old", days_ago=10),
+            self._item("recent", days_ago=1),
+            self._item("undated"),
+        ]}
+        videos = {"items": [_make_video("Episode 1", "recent")]}
+
+        with patch(
+            "shows.services.youtube_scanner.requests.get",
+            side_effect=[self._response(page), self._response(videos)],
+        ) as mock_get:
+            YoutubeScanner(api_key="k")._fetch_videos_for_playlist("PLx", "k", 2)
+
+        self.assertEqual(mock_get.call_count, 2)
+        self.assertEqual(mock_get.call_args_list[1].kwargs["params"]["id"], "recent,undated")

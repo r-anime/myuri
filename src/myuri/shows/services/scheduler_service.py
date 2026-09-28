@@ -1,11 +1,15 @@
 """Service for running scheduled scans and auto-posting episodes."""
 import logging
+from datetime import timedelta
 
 from django.utils import timezone
 
 from .scan_result import ScanResult
 
 logger = logging.getLogger(__name__)
+
+# Slack so APScheduler jitter doesn't push e.g. a 5-min YouTube interval out to 6 min.
+_YOUTUBE_DUE_TOLERANCE = timedelta(seconds=30)
 
 
 def _make_aware(dt):
@@ -59,12 +63,27 @@ class SchedulerService:
             self._youtube_scanner = YoutubeScanner()
         return self._youtube_scanner
 
-    def _scan_all_sources(self, enabled_shows):
-        """Run every wired-in scanner against enabled_shows and merge into one ScanResult."""
+    @staticmethod
+    def _youtube_due(config, now):
+        """Return True if enough time has passed since the last scheduled YouTube scan."""
+        if config.youtube_last_run is None:
+            return True
+        interval = timedelta(minutes=config.youtube_interval_minutes)
+        return now - _make_aware(config.youtube_last_run) >= interval - _YOUTUBE_DUE_TOLERANCE
+
+    def _scan_all_sources(self, enabled_shows, include_youtube=True):
+        """
+        Run every wired-in scanner against enabled_shows and merge into one ScanResult.
+
+        YouTube is skipped when include_youtube is False, to conserve API quota.
+        """
         nyaa_result = self.scanner.scan_recent(enabled_shows)
         nekobt_result = self.nekobt_scanner.scan_recent(enabled_shows)
         cr_result = self.crunchyroll_scanner.scan_recent(enabled_shows)
-        yt_result = self.youtube_scanner.scan_recent(enabled_shows)
+        if include_youtube:
+            yt_result = self.youtube_scanner.scan_recent(enabled_shows)
+        else:
+            yt_result = ScanResult(scan_time=nyaa_result.scan_time)
         return ScanResult(
             scan_time=nyaa_result.scan_time,
             episodes_found=(
@@ -115,6 +134,7 @@ class SchedulerService:
         1. Check if scheduler is enabled via SchedulerConfig
         2. Create ScanHistory record
         3. Run NyaaScanner, NekobtScanner, CrunchyrollScanner, and YoutubeScanner scan_recent(), merged into one ScanResult
+           (YouTube only when youtube_interval_minutes have passed since youtube_last_run)
         4. Store found episodes as ScanEpisode records
         5. Run AutoPostService to determine eligibility and post
         6. Update ScanEpisode statuses and ScanHistory counts
@@ -128,7 +148,11 @@ class SchedulerService:
             logger.info("Scheduler is disabled, skipping scan")
             return None
 
-        logger.info("Starting scheduled scan...")
+        youtube_due = self._youtube_due(config, timezone.now())
+        logger.info(
+            "Starting scheduled scan (YouTube %s)...",
+            "included" if youtube_due else "skipped, not yet due",
+        )
 
         # 2. Create ScanHistory record
         scan_history = ScanHistory.objects.create(
@@ -150,7 +174,7 @@ class SchedulerService:
                 config.save()
                 return scan_history
 
-            scan_result = self._scan_all_sources(enabled_shows)
+            scan_result = self._scan_all_sources(enabled_shows, include_youtube=youtube_due)
 
             # Update scan history with basic stats
             scan_history.shows_scanned = scan_result.shows_scanned
@@ -216,6 +240,8 @@ class SchedulerService:
 
             # 7. Update last run time
             config.last_run = timezone.now()
+            if youtube_due:
+                config.youtube_last_run = config.last_run
             config.save()
 
             logger.info(
@@ -234,7 +260,10 @@ class SchedulerService:
             scan_history.save()
 
             # Still update last run time so we don't retry immediately
+            # (and don't burn YouTube quota retrying every interval)
             config.last_run = timezone.now()
+            if youtube_due:
+                config.youtube_last_run = config.last_run
             config.save()
 
             raise
