@@ -185,6 +185,15 @@ class SchedulerConfig(models.Model):
         blank=True,
         help_text="Timestamp of the last scheduled scan"
     )
+    youtube_interval_minutes = models.IntegerField(
+        default=5,
+        help_text="Minimum minutes between YouTube scans (limits API quota usage)"
+    )
+    youtube_last_run = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text="Timestamp of the last scheduled YouTube scan"
+    )
 
     class Meta:
         verbose_name = "Scheduler Configuration"

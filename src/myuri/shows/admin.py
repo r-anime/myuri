@@ -71,8 +71,11 @@ class EpisodeAdmin(admin.ModelAdmin):
 
 @admin.register(SchedulerConfig)
 class SchedulerConfigAdmin(admin.ModelAdmin):
-    list_display = ["__str__", "enabled", "interval_minutes", "last_run"]
-    readonly_fields = ["last_run"]
+    list_display = [
+        "__str__", "enabled", "interval_minutes", "last_run",
+        "youtube_interval_minutes", "youtube_last_run",
+    ]
+    readonly_fields = ["last_run", "youtube_last_run"]
 
     def has_add_permission(self, request):
         # Only allow one instance (singleton)
