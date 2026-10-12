@@ -1,7 +1,11 @@
+from django import forms
 from django.contrib import admin
 from .models import (
     Franchise, Season, Show, LinkType, ShowLink, Episode,
     SchedulerConfig, ScanHistory, ScanEpisode, NotificationConfig
+)
+from .services.episode_csv_import import (
+    EpisodeCsvError, import_episodes, parse_episode_csv
 )
 
 
@@ -30,8 +34,36 @@ class SeasonAdmin(admin.ModelAdmin):
     ordering = ["-year", "season"]
 
 
+class ShowAdminForm(forms.ModelForm):
+    episodes_csv = forms.CharField(
+        label="Episodes CSV",
+        required=False,
+        widget=forms.Textarea(attrs={
+            "rows": 12,
+            "cols": 100,
+            "placeholder": "1,1,https://www.reddit.com/r/anime/comments/...",
+        }),
+        help_text=(
+            "One episode per line: episode_id,order,discussion_url (commas or tabs). "
+            "Episodes are created on save; an existing episode with the same "
+            "episode_id has its order and discussion URL overwritten."
+        ),
+    )
+
+    class Meta:
+        model = Show
+        fields = "__all__"
+
+    def clean_episodes_csv(self):
+        try:
+            return parse_episode_csv(self.cleaned_data["episodes_csv"])
+        except EpisodeCsvError as e:
+            raise forms.ValidationError(e.errors)
+
+
 @admin.register(Show)
 class ShowAdmin(admin.ModelAdmin):
+    form = ShowAdminForm
     list_display = ["title", "title_en", "season", "franchise", "episode_count", "enabled", "has_source", "disable_nyaa_trusted", "batch_release"]
     list_filter = ["enabled", "season", "franchise", "has_source", "disable_nyaa_trusted", "batch_release"]
     search_fields = ["title", "title_en", "aliases"]
@@ -43,7 +75,23 @@ class ShowAdmin(admin.ModelAdmin):
         ("Classification", {
             "fields": ["season", "franchise", "episode_count", "has_source", "disable_nyaa_trusted", "batch_release", "enabled"]
         }),
+        ("Bulk import episodes", {
+            # bulk-import-episodes: placed below Show Links by admin/shows/show/change_form.html
+            "classes": ["collapse", "bulk-import-episodes"],
+            "fields": ["episodes_csv"]
+        }),
     ]
+
+    def save_related(self, request, form, formsets, change):
+        # Runs after the episode inline is saved, so pasted rows win over inline edits
+        super().save_related(request, form, formsets, change)
+        rows = form.cleaned_data.get("episodes_csv")
+        if rows:
+            created, updated = import_episodes(form.instance, rows)
+            self.message_user(
+                request,
+                f"Episode import: {created} created, {updated} updated."
+            )
 
 
 @admin.register(LinkType)
