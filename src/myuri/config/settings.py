@@ -159,6 +159,10 @@ STATIC_ROOT = BASE_DIR / 'staticfiles'
 # Default primary key field type
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
+# The Show admin page posts ~6 fields per inline episode, so the default of
+# 1000 caps a show at roughly 160 episodes.
+DATA_UPLOAD_MAX_NUMBER_FIELDS = 10000
+
 
 # Django Allauth Configuration
 SITE_ID = 1
