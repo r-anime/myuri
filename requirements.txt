@@ -5,4 +5,4 @@ psycopg2-binary>=2.9.12
 django-apscheduler>=0.7.0
 pyyaml==6.0.3
 feedparser>=6.0.14
-pytest-django>=4.13.0
+pytest-django>=4.14.0
