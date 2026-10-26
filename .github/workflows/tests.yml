@@ -12,10 +12,16 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
+      - name: Read Python version
+        id: python-version
+        run: |
+          version=$(sed -nE 's/^FROM python:([0-9]+\.[0-9]+(\.[0-9]+)?)-[^[:space:]]+[[:space:]]+AS build-image$/\1/p' Dockerfile | head -n 1)
+          test -n "$version" || { echo "Could not find Python version for build-image" >&2; exit 1; }
+          echo "version=$version" >> "$GITHUB_OUTPUT"
       - name: Set up Python
         uses: actions/setup-python@v7
         with:
-          python-version: "3.14.5"
+          python-version: ${{ steps.python-version.outputs.version }}
       - name: Install dependencies
         run: pip install -r requirements.txt
       - name: Create config.ini
